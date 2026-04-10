@@ -127,3 +127,23 @@ async def cmd_analyze(message: Message):
         )
     
     await status_msg.edit_text(msg, parse_mode="Markdown")
+    
+@router.message(Command("debug"))
+async def cmd_debug(message: Message):
+    args = message.text.split()
+    if len(args) < 2:
+        await message.answer("Use: /debug <username>")
+        return
+
+    username = args[1].strip().lower()
+    games = await get_recent_games(username)
+
+    if not games:
+        await message.answer("No matches found")
+        return
+
+    game = games[0]
+    pgn = game.get("pgn", "")
+
+    first_lines = "\n".join(pgn.split("\n")[:15])
+    await message.answer(f"```\n{first_lines}\n```", parse_mode="Markdown")
