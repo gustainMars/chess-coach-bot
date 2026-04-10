@@ -18,8 +18,8 @@ async def cmd_analyze(message: Message):
         )
         return
     
-    username = args[1].strip()
-    
+    username = args[1].strip().lower()
+
     status_msg = await message.answer(f"Searching for user *{username}*...", parse_mode="Markdown")
     
     user_info = await get_user_info(username)
@@ -33,63 +33,63 @@ async def cmd_analyze(message: Message):
         await status_msg.edit_text(f"No matches found for the user *{username}*", parse_mode="Markdown")
         return
     
-    white_openings = defaultdict(lambda: {"wins": 0, "losses": 0, "draws": 0, "eco": "?"})
-    black_openings = defaultdict(lambda: {"wins": 0, "losses": 0, "draws": 0, "eco": "?"})
-    
+    white_openings = defaultdict(lambda: {"wins": 0, "losses": 0, "draws": 0, "name": "Unknown opening"})
+    black_openings = defaultdict(lambda: {"wins": 0, "losses": 0, "draws": 0, "name": "Unknown opening"})
+
     for game in games:
         white = game.get("white", {})
         black = game.get("black", {})
-        
+
         playing_white = white.get("username", "").lower() == username.lower()
         if playing_white:
             result = white.get("result")
         else:
             result = black.get("result")
-        
+
         if result == "win":
             outcome = "wins"
         elif result in ("checkmated", "resigned", "timeout", "abandoned"):
             outcome = "losses"
         else:
             outcome = "draws"
-            
+
         pgn = game.get("pgn", "")
         if not pgn:
             continue
-        
+
         parsed = parse_game(pgn)
         if not parsed:
             continue
-        
-        name = parsed["opening_name"]
+
         eco = parsed["opening_eco"]
-        
+        name = parsed["opening_name"]
+
         if playing_white:
-            white_openings[name]["eco"] = eco
-            white_openings[name][outcome] += 1
+            white_openings[eco]["name"] = name
+            white_openings[eco][outcome] += 1
         else:
-            black_openings[name]["eco"] = eco
-            black_openings[name][outcome] += 1
+            black_openings[eco]["name"] = name
+            black_openings[eco][outcome] += 1
     
     def calc_stats(openings):
         stats = []
-        for name, data in openings.items():
+        for eco, data in openings.items():
             total = data["wins"] + data["losses"] + data["draws"]
             winrate = round((data["wins"] / total) * 100) if total > 0 else 0
             stats.append({
-                "name": name,
-                "eco": data["eco"],
+                "name": data["name"],
+                "eco": eco,
                 "total": total,
-                "wins":  data["wins"],
+                "wins": data["wins"],
                 "losses": data["losses"],
                 "draws": data["draws"],
                 "winrate": winrate,
             })
-        stats.sort(key=lambda x: x["winrate"], reverse=True)
+        stats.sort(key=lambda x: x["total"], reverse=True)
         return stats[:3]
     
     def format_opening_block(op, rank):
-        emoji = "🟢" if op["winrate"] >= 55 else "🔴" if op["winrate"] >= 45 else "🟡"
+        emoji = "🟢" if op["winrate"] >= 55 else "🔴" if op["winrate"] < 45 else "🟡"
         return (
             f"{rank}. *{op['name']}* `[{op['eco']}]`\n"
             f"  {emoji} {op['winrate']}% winrate "
