@@ -10,6 +10,7 @@ from bot.handlers.analyze import router as analyze_router
 load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
+print(f"TOKEN LIDO: '{TOKEN[:10]}...'")
 
 logging.basicConfig(level=logging.INFO)
 
