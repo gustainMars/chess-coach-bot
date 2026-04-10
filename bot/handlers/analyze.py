@@ -1,145 +1,92 @@
 from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import Command
-from collections import defaultdict
+from bot.domain.messages import Messages
+from bot.domain.opening import OpeningStat
 from bot.services.chesscom import get_recent_games, get_user_info
-from bot.services.pgn_parser import parse_game
+from bot.services.stats import aggregate_openings, top_openings
 
 router = Router()
+
+def _format_opening_block(op: OpeningStat, rank: int):
+    emoji = "🟢" if op.winrate >= 55 else "🔴" if op.winrate < 45 else "🟡"
+    return (
+        f"{rank}. *{op.name}* `[{op.eco}]`\n"
+        f"  {emoji} {op.winrate}% winrate "
+        f"({op.wins}V {op.losses}L {op.draws}D) "
+        f"in {op.total} matches\n"
+    )
+
+def _format_report(username, games, white_stats, black_stats):
+    msg = Messages.REPORT_HEADER.format(username=username, total=len(games))
+    
+    msg += Messages.PLAYING_WHITE
+    if white_stats:
+        for i, op in enumerate(white_stats, 1):
+            msg += _format_opening_block(op, i)
+    else:
+        msg += Messages.NO_WHITE_DATA
+        
+    msg += Messages.PLAYING_BLACK
+    if black_stats:
+        for i, op in enumerate(black_stats, 1):
+            msg += _format_opening_block(op, i)
+    else:
+        msg += Messages.NO_BLACK_DATA
+        
+    all_stats = white_stats + black_stats
+    if all_stats:
+        worst = min(all_stats, key=lambda x: x.winrate)
+        msg += Messages.STUDY_SUGGESTION.format(name=worst.name, winrate=worst.winrate)
+    
+    return msg
 
 @router.message(Command("analyze"))
 async def cmd_analyze(message: Message):
     args = message.text.split()
     
     if len(args) < 2:
-        await message.answer(
-            "Use like this: /analyze <username>\n"
-            "Example: /analyze magnuscarlsen"
-        )
+        await message.answer(Messages.ANALYZE_USAGE)
         return
     
     username = args[1].strip().lower()
 
-    status_msg = await message.answer(f"Searching for user *{username}*...", parse_mode="Markdown")
+    status_msg = await message.answer(Messages.SEARCHING_USER.format(username=username), parse_mode="Markdown")
     
     user_info = await get_user_info(username)
     
     if user_info is None:
-        await status_msg.edit_text(f"User *{username}* not found on chess.com", parse_mode="Markdown")
+        await status_msg.edit_text(Messages.USER_NOT_FOUND.format(username=username), parse_mode="Markdown")
         return
     
     games = await get_recent_games(username)    
     if not games:
-        await status_msg.edit_text(f"No matches found for the user *{username}*", parse_mode="Markdown")
+        await status_msg.edit_text(Messages.NO_GAMES_FOUND.format(username=username), parse_mode="Markdown")
         return
     
-    white_openings = defaultdict(lambda: {"wins": 0, "losses": 0, "draws": 0, "name": "Unknown opening"})
-    black_openings = defaultdict(lambda: {"wins": 0, "losses": 0, "draws": 0, "name": "Unknown opening"})
-
-    for game in games:
-        white = game.get("white", {})
-        black = game.get("black", {})
-
-        playing_white = white.get("username", "").lower() == username.lower()
-        if playing_white:
-            result = white.get("result")
-        else:
-            result = black.get("result")
-
-        if result == "win":
-            outcome = "wins"
-        elif result in ("checkmated", "resigned", "timeout", "abandoned"):
-            outcome = "losses"
-        else:
-            outcome = "draws"
-
-        pgn = game.get("pgn", "")
-        if not pgn:
-            continue
-
-        parsed = parse_game(pgn)
-        if not parsed:
-            continue
-
-        eco = parsed["opening_eco"]
-        name = parsed["opening_name"]
-
-        if playing_white:
-            white_openings[eco]["name"] = name
-            white_openings[eco][outcome] += 1
-        else:
-            black_openings[eco]["name"] = name
-            black_openings[eco][outcome] += 1
+    await status_msg.edit_text(Messages.ANALYZING_GAMES.format(total=len(games)), parse_mode="Markdown")
     
-    def calc_stats(openings):
-        stats = []
-        for eco, data in openings.items():
-            total = data["wins"] + data["losses"] + data["draws"]
-            winrate = round((data["wins"] / total) * 100) if total > 0 else 0
-            stats.append({
-                "name": data["name"],
-                "eco": eco,
-                "total": total,
-                "wins": data["wins"],
-                "losses": data["losses"],
-                "draws": data["draws"],
-                "winrate": winrate,
-            })
-        stats.sort(key=lambda x: x["total"], reverse=True)
-        return stats[:3]
+    white_openings, black_openings = aggregate_openings(games, username)
+    white_stats = top_openings(white_openings)
+    black_stats = top_openings(black_openings)
     
-    def format_opening_block(op, rank):
-        emoji = "🟢" if op["winrate"] >= 55 else "🔴" if op["winrate"] < 45 else "🟡"
-        return (
-            f"{rank}. *{op['name']}* `[{op['eco']}]`\n"
-            f"  {emoji} {op['winrate']}% winrate "
-            f"({op['wins']}V {op['losses']}D {op['draws']}E) "
-            f"em {op['total']} partidas\n"
-        )
-        
-    white_stats = calc_stats(white_openings)
-    black_stats = calc_stats(black_openings)
-    
-    msg = f"♟️ *Openings Analysis — {username}*\n"
-    msg += f"_{len(games)} matches on the last month_\n\n"
-    
-    msg += "*Playing as White:*\n"
-    if white_stats:
-        for i, op in enumerate(white_stats, 1):
-            msg += format_opening_block(op, i)
-    else:
-        msg += "_No data for white openings_\n"
-        
-    msg += "\n*Playing as Black:*\n"
-    if black_stats:
-        for i, op in enumerate(black_stats, 1):
-            msg += format_opening_block(op, i)
-    else:
-        msg += "_No data for black openings_\n"
-        
-    allStats = white_stats + black_stats
-    if allStats:
-        worst = min(allStats, key=lambda x: x["winrate"])
-        msg += (
-            f"\n📚 *Study suggestion:*\n"
-            f"Focus on improving the opening *{worst['name']}* - with a winrate of {worst['winrate']}%.\n"
-            f"Use /study to get personalized study materials for this opening.\n"
-        )
-    
-    await status_msg.edit_text(msg, parse_mode="Markdown")
+    await status_msg.edit_text(
+        _format_report(username, games, white_stats, black_stats), 
+        parse_mode="Markdown"
+    )
     
 @router.message(Command("debug"))
 async def cmd_debug(message: Message):
     args = message.text.split()
     if len(args) < 2:
-        await message.answer("Use: /debug <username>")
+        await message.answer(Messages.DEBUG_USAGE)
         return
 
     username = args[1].strip().lower()
     games = await get_recent_games(username)
 
     if not games:
-        await message.answer("No matches found")
+        await message.answer(Messages.NO_GAMES_FOUND.format(username=username))
         return
 
     game = games[0]
