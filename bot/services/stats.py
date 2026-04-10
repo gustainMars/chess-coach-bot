@@ -1,6 +1,6 @@
 from collections import defaultdict
 from bot.domain.opening import OpeningStat, Outcome
-from bot.services.pgn_parser import extract_opening_from
+from bot.services.opening_extractor import extract_opening_from
 
 def aggregate_openings(games: list, username: str) -> tuple:
     white_openings = defaultdict(lambda: {"wins": 0, "losses": 0, "draws": 0, "name": "Unknown opening"})
@@ -24,12 +24,12 @@ def aggregate_openings(games: list, username: str) -> tuple:
         if not pgn:
             continue
         
-        parsed = extract_opening_from(pgn)
-        if not parsed:
+        opening_data = extract_opening_from(pgn)
+        if not opening_data:
             continue
         
-        eco = parsed["opening_eco"]
-        name = parsed["opening_name"]
+        eco = opening_data["opening_eco"]
+        name = opening_data["opening_name"]
         
         if playing_white:
             white_openings[eco]["name"] = name
