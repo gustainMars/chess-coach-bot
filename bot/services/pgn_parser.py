@@ -1,35 +1,27 @@
-import chess.pgn
-import io
-from bot.services.opening import find_opening
+import re
 
 def parse_game(pgn_str: str) -> dict:
     """Extracts relevant information from a PGN match."""
-    game = chess.pgn.read_game(io.StringIO(pgn_str))
     
-    if not game:
-        return None
+    def get_tag(tag):
+        match = re.search(rf'\[{tag} "(.+?)"\]', pgn_str)
+        return match.group(1) if match else "?"
     
-    board = game.board()
-    moves = []
+    eco = get_tag("ECO")
+    eco_url = get_tag("ECOUrl")
     
-    for i, move in enumerate(game.mainline_moves()):
-        if i >= 20:
-            break
-        san = board.san(move)
-        moves.append(san)
-        board.push(move)
-    
-    pgn_moves = ""
-    for i, move in enumerate(moves):
-        if i % 2 == 0:
-            pgn_moves += f"{(i // 2) + 1}"
-        pgn_moves += f"{move} "
+    opening_name = "Unknown opening"
+    if eco_url and eco_url != "?":
+        slug = eco_url.split("/openings/")[-1]
+        parts = slug.split("-")
+        clean_parts = []
+        for part in parts:
+            if part and part[0].isdigit():
+                break
+            clean_parts.append(part)
+        opening_name = " ".join(clean_parts).replace("s ", "'s ", 1)
         
-    opening = find_opening(pgn_moves.strip())
-    
-    return {
-        "opening_eco": opening["eco"],
-        "opening_name": opening["name"],
-        "moves": moves,
-        "pgn_moves": pgn_moves.strip(),
+    return {      
+        "opening_eco": eco,
+        "opening_name": opening_name,
     }
