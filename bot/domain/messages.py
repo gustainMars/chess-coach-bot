@@ -4,6 +4,7 @@ class Messages:
     NO_GAMES_FOUND = "No matches found for the user *{username}*"
     ANALYZING_GAMES = "⚙️ Analyzing {total} games..."
     DEBUG_NO_GAMES = "No matches found"
+    DEBUG_INVALID_MOVE = "parse_moves: invalid token '{token}', stopping"
     ANALYZE_USAGE = "Use like this: /analyze <username>\nExample: /analyze magnuscarlsen"
     DEBUG_USAGE = "Use: /debug <username>"
 

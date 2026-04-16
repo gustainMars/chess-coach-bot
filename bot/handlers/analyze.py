@@ -49,6 +49,7 @@ async def cmd_analyze(message: Message):
         await message.answer(Messages.ANALYZE_USAGE)
         return
     
+    username_og = args[1].strip()
     username = args[1].strip().lower()
 
     status_msg = await message.answer(Messages.SEARCHING_USER.format(username=username), parse_mode="Markdown")
@@ -71,7 +72,7 @@ async def cmd_analyze(message: Message):
     black_stats = top_openings(black_openings)
     
     await status_msg.edit_text(
-        _format_report(username, games, white_stats, black_stats), 
+        _format_report(username_og, games, white_stats, black_stats), 
         parse_mode="Markdown"
     )
     
