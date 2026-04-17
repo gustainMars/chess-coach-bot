@@ -71,8 +71,8 @@ async def test_evaluate_deviation():
     mock_transport = MagicMock()
     mock_engine = AsyncMock()
     mock_engine.analyse = AsyncMock(side_effect=[
-        {"score": chess.engine.PovScore(chess.engine.Cp(100), chess.WHITE)},   # antes
-        {"score": chess.engine.PovScore(chess.engine.Cp(-60), chess.WHITE)},   # depois → drop 160 = blunder
+        {"score": chess.engine.PovScore(chess.engine.Cp(100), chess.WHITE)},
+        {"score": chess.engine.PovScore(chess.engine.Cp(-60), chess.WHITE)},
     ])
     mock_engine.quit = AsyncMock()
     
