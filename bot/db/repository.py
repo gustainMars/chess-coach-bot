@@ -1,4 +1,6 @@
-from sqlalchemy import select
+from datetime import datetime
+
+from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.sqlite import insert
 
@@ -107,3 +109,52 @@ async def get_blunders(session: AsyncSession, telegram_id: int) -> list[Blunder]
         .order_by(Blunder.created_at.desc())
     )
     return list(result.scalars().all())
+
+
+async def get_blunder_by_id(session: AsyncSession, blunder_id: int) -> Blunder | None:
+    result = await session.execute(select(Blunder).where(Blunder.id == blunder_id))
+    return result.scalar_one_or_none()
+
+
+async def mark_blunder_reviewed(session: AsyncSession, blunder_id: int) -> None:
+    await session.execute(
+        update(Blunder).where(Blunder.id == blunder_id).values(reviewed_at=datetime.utcnow())
+    )
+    await session.commit()
+
+
+async def reset_all_reviews(session: AsyncSession, telegram_id: int) -> None:
+    await session.execute(
+        update(Blunder).where(Blunder.telegram_id == telegram_id).values(reviewed_at=None)
+    )
+    await session.commit()
+
+
+async def get_next_unreviewed_blunder(
+    session: AsyncSession, telegram_id: int
+) -> tuple[Blunder | None, bool]:
+    result = await session.execute(
+        select(Blunder)
+        .where(Blunder.telegram_id == telegram_id, Blunder.reviewed_at.is_(None))
+        .order_by(Blunder.created_at.asc())
+        .limit(1)
+    )
+    blunder = result.scalar_one_or_none()
+    if blunder is not None:
+        return blunder, False
+
+    count_result = await session.execute(
+        select(func.count()).where(Blunder.telegram_id == telegram_id)
+    )
+    count = count_result.scalar_one()
+    if count == 0:
+        return None, False
+
+    await reset_all_reviews(session, telegram_id)
+    result = await session.execute(
+        select(Blunder)
+        .where(Blunder.telegram_id == telegram_id)
+        .order_by(Blunder.created_at.asc())
+        .limit(1)
+    )
+    return result.scalar_one_or_none(), True
