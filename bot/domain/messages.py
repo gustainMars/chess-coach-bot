@@ -18,3 +18,4 @@ class Messages:
         "Focus on improving the opening *{name}* - with a winrate of {winrate}%.\n"
         "Use /study to get personalized study materials for this opening.\n"
     )
+    RATING_PROGRESS = "\n🎉 *Rating up!* Rapid went from {prev} → {current} since last month. Keep it up!\n"

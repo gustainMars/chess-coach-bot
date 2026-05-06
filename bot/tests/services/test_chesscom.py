@@ -121,3 +121,58 @@ async def test_get_user_info_not_found():
         result = await get_user_info("ghost")
 
     assert result is None
+
+
+# --- get_player_rating ---
+
+@pytest.mark.asyncio
+async def test_get_player_rating_returns_rapid_rating():
+    from bot.services.chesscom import get_player_rating
+
+    payload = {"chess_rapid": {"last": {"rating": 1350}}}
+    resp = make_response(200, payload)
+
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("bot.services.chesscom.httpx.AsyncClient", return_value=mock_client):
+        result = await get_player_rating("alice")
+
+    assert result == 1350
+
+
+@pytest.mark.asyncio
+async def test_get_player_rating_no_rapid_games():
+    from bot.services.chesscom import get_player_rating
+
+    # utilizador existe mas nunca jogou rapid
+    resp = make_response(200, {"chess_bullet": {"last": {"rating": 900}}})
+
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("bot.services.chesscom.httpx.AsyncClient", return_value=mock_client):
+        result = await get_player_rating("alice")
+
+    assert result is None
+
+
+@pytest.mark.asyncio
+async def test_get_player_rating_api_error():
+    from bot.services.chesscom import get_player_rating
+
+    resp = make_response(404, {})
+
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(return_value=resp)
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("bot.services.chesscom.httpx.AsyncClient", return_value=mock_client):
+        result = await get_player_rating("ghost")
+
+    assert result is None

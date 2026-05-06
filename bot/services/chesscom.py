@@ -33,6 +33,22 @@ async def get_recent_games(username: str, num_months: int = 1) -> list:
     return all_games
 
 
+async def get_player_rating(username: str) -> int | None:
+    """Returns the user's current rapid rating, or None if unavailable."""
+    async with httpx.AsyncClient() as client:
+        response = await client.get(
+            f"{BASE_URL}/player/{username}/stats",
+            headers={"User-Agent": "ChessOpeningsCoachBot/1.0"}
+        )
+        if response.status_code != 200:
+            return None
+        data = response.json()
+        try:
+            return data["chess_rapid"]["last"]["rating"]
+        except (KeyError, TypeError):
+            return None
+
+
 async def get_user_info(username: str) -> dict:
     """Search for user profile information."""
     async with httpx.AsyncClient() as client:

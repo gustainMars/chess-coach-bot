@@ -14,16 +14,20 @@ TOKEN = os.getenv("TELEGRAM_TOKEN")
 
 logging.basicConfig(level=logging.INFO)
 
-async def main():
+
+async def on_startup(**kwargs):
     await init_db()
 
+
+async def main():
     bot = Bot(token=TOKEN)
     dp = Dispatcher()
+    dp.startup.register(on_startup)
     dp.include_router(start_router)
     dp.include_router(analyze_router)
 
     print("Bot rodando!")
     await dp.start_polling(bot)
-    
+
 if __name__ == "__main__":
     asyncio.run(main())

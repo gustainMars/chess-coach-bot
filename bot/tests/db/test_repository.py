@@ -3,8 +3,9 @@ import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
 from bot.db.models import Base
-from bot.db.repository import get_blunders, get_user, save_blunder, upsert_user
+from bot.db.repository import get_blunders, get_previous_rating, get_user, save_blunder, upsert_opening_stat, upsert_user
 from bot.domain.move_quality import MoveQuality
+from bot.domain.opening import Color
 
 TEST_DB_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -95,3 +96,96 @@ async def test_get_blunders_ordered_by_most_recent(session: AsyncSession):
 
     blunders = await get_blunders(session, telegram_id=1)
     assert blunders[0].opening_eco == "D00"
+
+
+# --- upsert_opening_stat ---
+
+@pytest.mark.asyncio
+async def test_upsert_opening_stat_creates(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 1, 2024, 1200, 10, 6, 3, 1)
+
+    rating = await get_previous_rating(session, "alice", 2, 2024)
+    assert rating == 1200
+
+
+@pytest.mark.asyncio
+async def test_upsert_opening_stat_updates_counters_not_rating(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 1, 2024, 1200, 10, 6, 3, 1)
+    # segunda chamada no mesmo mês — rating novo diferente, mas não deve ser atualizado
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 1, 2024, 1350, 15, 9, 4, 2)
+
+    from sqlalchemy import select
+    from bot.db.models import UserOpeningStat
+    result = await session.execute(
+        select(UserOpeningStat).where(
+            UserOpeningStat.chesscom_username == "alice",
+            UserOpeningStat.eco == "C60",
+            UserOpeningStat.month == 1,
+            UserOpeningStat.year == 2024,
+        )
+    )
+    stat = result.scalar_one()
+    assert stat.total == 15       # contador atualizado
+    assert stat.rating == 1200    # rating preservado do primeiro INSERT
+
+
+@pytest.mark.asyncio
+async def test_upsert_opening_stat_different_months_are_separate(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 1, 2024, 1200, 10, 6, 3, 1)
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 2, 2024, 1250, 8, 5, 2, 1)
+
+    jan_rating = await get_previous_rating(session, "alice", 2, 2024)
+    assert jan_rating == 1200
+
+
+# --- get_previous_rating ---
+
+@pytest.mark.asyncio
+async def test_get_previous_rating_no_history(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    rating = await get_previous_rating(session, "alice", 5, 2024)
+    assert rating is None
+
+
+@pytest.mark.asyncio
+async def test_get_previous_rating_ignores_current_month(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 5, 2024, 1300, 10, 6, 3, 1)
+
+    # pede o rating anterior ao mês 5/2024 — só há dados do mês 5 (atual), nada anterior
+    rating = await get_previous_rating(session, "alice", 5, 2024)
+    assert rating is None
+
+
+@pytest.mark.asyncio
+async def test_get_previous_rating_returns_most_recent_prior(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 1, 2024, 1100, 10, 6, 3, 1)
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 3, 2024, 1200, 10, 6, 3, 1)
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 5, 2024, 1300, 10, 6, 3, 1)
+
+    # mês atual = 5/2024 → deve retornar o rating de 3/2024 (o mais recente anterior)
+    rating = await get_previous_rating(session, "alice", 5, 2024)
+    assert rating == 1200
+
+
+@pytest.mark.asyncio
+async def test_get_previous_rating_crosses_year_boundary(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 12, 2023, 1150, 10, 6, 3, 1)
+
+    rating = await get_previous_rating(session, "alice", 1, 2024)
+    assert rating == 1150
+
+
+@pytest.mark.asyncio
+async def test_get_previous_rating_ignores_null_rating(session: AsyncSession):
+    await upsert_user(session, telegram_id=1, chesscom_username="alice")
+    # rating=None simula utilizador sem partidas rápidas no Chess.com
+    await upsert_opening_stat(session, "alice", "C60", Color.WHITE, 1, 2024, None, 10, 6, 3, 1)
+
+    rating = await get_previous_rating(session, "alice", 2, 2024)
+    assert rating is None
