@@ -10,8 +10,9 @@ async def cmd_start(message: Message):
         "♞ Welcome Chess Openings Coach Bot!\n\n"
         "I analyze your games and create a personalized study plan.\n\n"
         "Available commands:\n"
-        "/analyze <username> - Analyzes games from Chess.com\n"
+        "/analyze <username> [months] - Analyzes games from Chess.com\n"
         "/study - Starts your flashcards\n"
+        "/attack-training - Identify all capturable pieces\n"
         "/help - Help"
     )
 
@@ -19,6 +20,7 @@ async def cmd_start(message: Message):
 async def cmd_help(message: Message):
     await message.answer(
         "How to use Chess Openings Coach Bot:\n\n"
-        "1. Use /analyze <your username on chess.com> so I can analyze your games and identify improvements in your openings\n"
-        "2. Use /study to practice with flashcards based on your mistakes"
+        "1. /analyze <username> [months] — analyze your Chess.com games (1–6 months, default 1)\n"
+        "2. /study — flashcard quiz on your worst opening moments\n"
+        "3. /attack-training — spot all pieces that can be captured in a position"
     )
