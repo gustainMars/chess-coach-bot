@@ -5,7 +5,7 @@ class Messages:
     ANALYZING_GAMES = "⚙️ Analyzing {total} games..."
     DEBUG_NO_GAMES = "No matches found"
     DEBUG_INVALID_MOVE = "parse_moves: invalid token '{token}', stopping"
-    ANALYZE_USAGE = "Use like this: /analyze <username>\nExample: /analyze magnuscarlsen"
+    ANALYZE_USAGE = "Use like this: /analyze <username> [months]\nExample: /analyze magnuscarlsen 3\n_months: 1–6, default 1_"
     DEBUG_USAGE = "Use: /debug <username>"
 
     REPORT_HEADER = "♟️ *Openings Analysis — {username}*\n_{total} matches on the last month_\n\n"
@@ -32,3 +32,14 @@ class Messages:
         "Reply with SAN (e.g. *Nf3*, *O-O*) or UCI format (e.g. *g1f3*)."
     )
     STUDY_DECK_RESET = "🎉 You've reviewed all your blunders! Starting the deck over.\n\n"
+
+    ATTACK_QUESTION = (
+        "⚔️ *Attack Training*\n\n"
+        "Tap *all pieces that can be captured* in this position "
+        "(regardless of whether the capture is good or not).\n"
+        "Press *Check ✅* when done."
+    )
+    ATTACK_CORRECT = "✅ *Correct!* All {count} capturable piece(s) identified.\n\nUse /attack\\-training for a new position."
+    ATTACK_WRONG_MISSED = "⚠️ Not quite — you missed: *{missed}*. Try again!"
+    ATTACK_WRONG_EXTRA = "⚠️ Not quite — *{extra}* cannot be captured. Try again!"
+    ATTACK_WRONG_BOTH = "⚠️ Missed: *{missed}* | Wrongly selected: *{extra}*. Try again!"
