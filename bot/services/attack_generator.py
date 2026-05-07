@@ -4,7 +4,22 @@ import chess
 
 
 def get_capturable_squares(board: chess.Board) -> set[int]:
-    return {m.to_square for m in board.legal_moves if board.is_capture(m)}
+    """Return squares of pieces that can be captured by either side."""
+    squares: set[int] = set()
+    for square in chess.SQUARES:
+        piece = board.piece_at(square)
+        if piece is None:
+            continue
+        if board.attackers(not piece.color, square):
+            squares.add(square)
+    return squares
+
+
+def validate_capture_selection(
+    capturable: set[str], selected: set[str]
+) -> tuple[set[str], set[str]]:
+    """Return (missed, extra) for the user's selection of square names."""
+    return capturable - selected, selected - capturable
 
 
 def generate_attack_position(min_captures: int = 2, max_captures: int = 5) -> chess.Board:

@@ -14,18 +14,22 @@ from aiogram.types import (
 )
 
 from bot.domain.messages import Messages
-from bot.services.attack_generator import generate_attack_position, get_capturable_squares
+from bot.services.attack_generator import (
+    generate_attack_position,
+    get_capturable_squares,
+    validate_capture_selection,
+)
 from bot.services.board_renderer import fen_to_png
 
 router = Router()
 
-_PIECE_SYMBOLS = {
-    chess.PAWN: ("♟", "♙"),
+_PIECE_SYMBOLS: dict[int, tuple[str, str]] = {
+    chess.PAWN:   ("♟", "♙"),
     chess.KNIGHT: ("♞", "♘"),
     chess.BISHOP: ("♝", "♗"),
-    chess.ROOK: ("♜", "♖"),
-    chess.QUEEN: ("♛", "♕"),
-    chess.KING: ("♚", "♔"),
+    chess.ROOK:   ("♜", "♖"),
+    chess.QUEEN:  ("♛", "♕"),
+    chess.KING:   ("♚", "♔"),
 }
 
 
@@ -33,30 +37,39 @@ class AttackTrainingStates(StatesGroup):
     selecting = State()
 
 
-def _piece_label(board: chess.Board, square: int) -> str:
-    piece = board.piece_at(square)
-    if piece is None:
-        return chess.square_name(square)
+def _piece_symbol(piece: chess.Piece) -> str:
     black_sym, white_sym = _PIECE_SYMBOLS[piece.piece_type]
-    sym = white_sym if piece.color == chess.WHITE else black_sym
-    return f"{sym} {chess.square_name(square)}"
+    return white_sym if piece.color == chess.WHITE else black_sym
 
 
-def _build_keyboard(board: chess.Board, selected: set[str]) -> InlineKeyboardMarkup:
-    buttons: list[InlineKeyboardButton] = []
-    for square in chess.SQUARES:
-        if board.piece_at(square) is None:
-            continue
-        sq_name = chess.square_name(square)
-        label = _piece_label(board, square)
-        is_selected = sq_name in selected
-        display = f"✅ {label}" if is_selected else f"⬜ {label}"
-        buttons.append(
-            InlineKeyboardButton(text=display, callback_data=f"atk:toggle:{sq_name}")
-        )
+def _build_board_keyboard(
+    board: chess.Board, selected: set[str]
+) -> InlineKeyboardMarkup:
+    """Build an 8×8 InlineKeyboard that mirrors the board orientation."""
+    flipped = board.turn == chess.BLACK
+    ranks = range(7, -1, -1) if not flipped else range(0, 8)
+    files = range(0, 8) if not flipped else range(7, -1, -1)
 
-    rows = [buttons[i : i + 4] for i in range(0, len(buttons), 4)]
-    rows.append([InlineKeyboardButton(text="Check ✅", callback_data="atk:check")])
+    rows: list[list[InlineKeyboardButton]] = []
+    for rank in ranks:
+        row: list[InlineKeyboardButton] = []
+        for file in files:
+            square = chess.square(file, rank)
+            piece = board.piece_at(square)
+            sq_name = chess.square_name(square)
+
+            if piece is None:
+                label = "·"
+                cb = "atk:noop"
+            else:
+                sym = _piece_symbol(piece)
+                label = f"✅{sym}" if sq_name in selected else sym
+                cb = f"atk:toggle:{sq_name}"
+
+            row.append(InlineKeyboardButton(text=label, callback_data=cb))
+        rows.append(row)
+
+    rows.append([InlineKeyboardButton(text="✅ Check", callback_data="atk:check")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -73,21 +86,20 @@ async def cmd_attack_training(message: Message, state: FSMContext):
         return
 
     capturable = {chess.square_name(sq) for sq in get_capturable_squares(board)}
-    keyboard = _build_keyboard(board, selected=set())
+    keyboard = _build_board_keyboard(board, selected=set())
 
-    sent = await message.answer_photo(
+    await message.answer_photo(
         photo=BufferedInputFile(png_bytes, filename="board.png"),
         caption=Messages.ATTACK_QUESTION,
         parse_mode="Markdown",
+        reply_markup=keyboard,
     )
-    await message.answer("Select pieces:", reply_markup=keyboard)
 
     await state.set_state(AttackTrainingStates.selecting)
     await state.update_data(
         fen=board.fen(),
         capturable=list(capturable),
         selected=[],
-        keyboard_msg_id=sent.message_id + 1,
     )
 
 
@@ -102,22 +114,22 @@ async def handle_attack_callback(query: CallbackQuery, state: FSMContext):
     selected: set[str] = set(data["selected"])
     board = chess.Board(fen)
 
+    if action == "noop":
+        await query.answer()
+        return
+
     if action == "toggle":
         sq_name = parts[2]
-        if sq_name in selected:
-            selected.discard(sq_name)
-        else:
-            selected.add(sq_name)
-
+        selected.discard(sq_name) if sq_name in selected else selected.add(sq_name)
         await state.update_data(selected=list(selected))
-        keyboard = _build_keyboard(board, selected)
-        await query.message.edit_reply_markup(reply_markup=keyboard)
+        await query.message.edit_reply_markup(
+            reply_markup=_build_board_keyboard(board, selected)
+        )
         await query.answer()
         return
 
     if action == "check":
-        missed = capturable - selected
-        extra = selected - capturable
+        missed, extra = validate_capture_selection(capturable, selected)
 
         if not missed and not extra:
             await state.clear()
@@ -127,10 +139,11 @@ async def handle_attack_callback(query: CallbackQuery, state: FSMContext):
                 parse_mode="Markdown",
             )
         elif missed and extra:
-            missed_str = ", ".join(sorted(missed))
-            extra_str = ", ".join(sorted(extra))
             await query.answer(
-                Messages.ATTACK_WRONG_BOTH.format(missed=missed_str, extra=extra_str),
+                Messages.ATTACK_WRONG_BOTH.format(
+                    missed=", ".join(sorted(missed)),
+                    extra=", ".join(sorted(extra)),
+                ),
                 show_alert=True,
             )
         elif missed:

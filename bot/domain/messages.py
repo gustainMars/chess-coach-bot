@@ -39,7 +39,7 @@ class Messages:
         "(regardless of whether the capture is good or not).\n"
         "Press *Check ✅* when done."
     )
-    ATTACK_CORRECT = "✅ *Correct!* All {count} capturable piece(s) identified.\n\nUse /attack\\-training for a new position."
+    ATTACK_CORRECT = "✅ *Correct!* All {count} capturable piece(s) identified.\n\nUse /attack-training for a new position."
     ATTACK_WRONG_MISSED = "⚠️ Not quite — you missed: *{missed}*. Try again!"
     ATTACK_WRONG_EXTRA = "⚠️ Not quite — *{extra}* cannot be captured. Try again!"
     ATTACK_WRONG_BOTH = "⚠️ Missed: *{missed}* | Wrongly selected: *{extra}*. Try again!"
