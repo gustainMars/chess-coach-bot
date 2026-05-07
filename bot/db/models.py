@@ -29,6 +29,7 @@ class Blunder(Base):
     expected_move: Mapped[str] = mapped_column(String, nullable=False)
     quality: Mapped[str] = mapped_column(String, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, nullable=False)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True, default=None)
 
     user: Mapped["User"] = relationship("User", back_populates="blunders")
 
