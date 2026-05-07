@@ -1,30 +1,50 @@
 import chess
 import pytest
 
-from bot.services.attack_generator import generate_attack_position, get_capturable_squares
+from bot.services.attack_generator import (
+    generate_attack_position,
+    get_capturable_squares,
+    validate_capture_selection,
+)
 
-# FEN where White can capture d5 (exd5) and Black can capture e4 (dxe4)
-MULTI_CAPTURE_FEN = "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3"
+# Both sides have captures: White exd5, Black dxe4
+MUTUAL_CAPTURE_FEN = "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3"
 
-# Starting position — no captures available
+# Black's turn — white pawn on e4 attacks f5, g6 attacks h7 (black pawns)
+BLACK_TURN_FEN = "6k1/7p/6P1/5p2/4P3/8/8/6K1 b - - 0 1"
+
+# Starting position — no captures at all
 NO_CAPTURE_FEN = chess.STARTING_FEN
 
 
-def test_get_capturable_squares_finds_captures():
-    board = chess.Board(MULTI_CAPTURE_FEN)
+# ── get_capturable_squares ────────────────────────────────────────────────────
+
+def test_capturable_includes_both_sides_attacks():
+    """d5 (attacked by white e4) and e4 (attacked by black d5) both capturable."""
+    board = chess.Board(MUTUAL_CAPTURE_FEN)
     squares = get_capturable_squares(board)
-    assert len(squares) >= 1
-    assert chess.D5 in squares  # White can capture on d5
+    assert chess.D5 in squares  # white pawn e4 attacks d5
+    assert chess.E4 in squares  # black pawn d5 attacks e4
 
 
-def test_get_capturable_squares_empty_when_no_captures():
+def test_capturable_finds_squares_when_not_current_player_turn():
+    """White pawns e4 and g6 attack black pawns f5 and h7 even when it's Black's turn."""
+    board = chess.Board(BLACK_TURN_FEN)
+    assert board.turn == chess.BLACK
+    squares = get_capturable_squares(board)
+    # f5 is attacked by white pawn e4 (even though it's Black's turn)
+    assert chess.F5 in squares
+    # h7 is attacked by white pawn g6
+    assert chess.H7 in squares
+
+
+def test_capturable_empty_when_no_captures():
     board = chess.Board(NO_CAPTURE_FEN)
-    squares = get_capturable_squares(board)
-    assert len(squares) == 0
+    assert get_capturable_squares(board) == set()
 
 
-def test_get_capturable_squares_returns_set_of_squares():
-    board = chess.Board(MULTI_CAPTURE_FEN)
+def test_capturable_returns_set_of_ints():
+    board = chess.Board(MUTUAL_CAPTURE_FEN)
     squares = get_capturable_squares(board)
     assert isinstance(squares, set)
     for sq in squares:
@@ -32,28 +52,80 @@ def test_get_capturable_squares_returns_set_of_squares():
         assert 0 <= sq <= 63
 
 
-def test_generate_attack_position_returns_board():
-    board = generate_attack_position()
-    assert isinstance(board, chess.Board)
+# ── validate_capture_selection ────────────────────────────────────────────────
+
+def test_validate_all_correct_returns_empty_sets():
+    capturable = {"e4", "d5"}
+    selected = {"e4", "d5"}
+    missed, extra = validate_capture_selection(capturable, selected)
+    assert missed == set()
+    assert extra == set()
 
 
-def test_generate_attack_position_has_captures():
+def test_validate_missed_squares():
+    capturable = {"e4", "d5", "f3"}
+    selected = {"e4"}
+    missed, extra = validate_capture_selection(capturable, selected)
+    assert missed == {"d5", "f3"}
+    assert extra == set()
+
+
+def test_validate_extra_squares():
+    capturable = {"e4"}
+    selected = {"e4", "g7"}
+    missed, extra = validate_capture_selection(capturable, selected)
+    assert missed == set()
+    assert extra == {"g7"}
+
+
+def test_validate_missed_and_extra():
+    capturable = {"e4", "d5"}
+    selected = {"e4", "f6"}
+    missed, extra = validate_capture_selection(capturable, selected)
+    assert missed == {"d5"}
+    assert extra == {"f6"}
+
+
+def test_validate_empty_selection_all_missed():
+    capturable = {"e4", "d5"}
+    missed, extra = validate_capture_selection(capturable, set())
+    assert missed == {"e4", "d5"}
+    assert extra == set()
+
+
+def test_validate_empty_capturable_all_extra():
+    selected = {"e4", "d5"}
+    missed, extra = validate_capture_selection(set(), selected)
+    assert missed == set()
+    assert extra == {"e4", "d5"}
+
+
+def test_validate_both_empty():
+    missed, extra = validate_capture_selection(set(), set())
+    assert missed == set()
+    assert extra == set()
+
+
+# ── generate_attack_position ──────────────────────────────────────────────────
+
+def test_generate_returns_board():
+    assert isinstance(generate_attack_position(), chess.Board)
+
+
+def test_generate_has_min_captures():
     board = generate_attack_position(min_captures=2)
-    capturable = get_capturable_squares(board)
-    assert len(capturable) >= 2
+    assert len(get_capturable_squares(board)) >= 2
 
 
-def test_generate_attack_position_not_in_check():
-    board = generate_attack_position()
-    assert not board.is_check()
+def test_generate_not_in_check():
+    assert not generate_attack_position().is_check()
 
 
-def test_generate_attack_position_respects_min_max():
+def test_generate_respects_min_max():
     board = generate_attack_position(min_captures=2, max_captures=4)
-    capturable = get_capturable_squares(board)
-    assert 2 <= len(capturable) <= 4
+    n = len(get_capturable_squares(board))
+    assert 2 <= n <= 4
 
 
-def test_generate_attack_position_is_valid_position():
-    board = generate_attack_position()
-    assert board.is_valid()
+def test_generate_is_valid_position():
+    assert generate_attack_position().is_valid()
