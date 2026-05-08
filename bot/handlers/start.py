@@ -4,6 +4,7 @@ from aiogram.filters import CommandStart, Command
 
 router = Router()
 
+
 @router.message(CommandStart())
 async def cmd_start(message: Message):
     await message.answer(
@@ -16,11 +17,13 @@ async def cmd_start(message: Message):
         "/help - Help"
     )
 
+
 @router.message(Command("help"))
 async def cmd_help(message: Message):
     await message.answer(
         "How to use Chess Openings Coach Bot:\n\n"
-        "1. /analyze <username> [months] — analyze your Chess.com games (1–6 months, default 1)\n"
+        "1. /analyze <username> [months] — analyze your Chess.com games"
+        " (1–6 months, default 1)\n"
         "2. /study — flashcard quiz on your worst opening moments\n"
         "3. /attack-training — spot all pieces that can be captured in a position"
     )

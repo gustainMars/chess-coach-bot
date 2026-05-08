@@ -2,7 +2,6 @@ import logging
 import os
 from urllib.parse import urlencode
 
-import chess
 from aiogram import Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
@@ -15,10 +14,13 @@ from aiogram.types import (
 )
 
 from bot.domain.messages import Messages
-from bot.services.attack_generator import generate_attack_position, get_capturable_squares
+from bot.services.attack_generator import (
+    generate_attack_position,
+)
 from bot.services.board_renderer import fen_to_png
 
 router = Router()
+
 
 def _webapp_keyboard(fen: str) -> InlineKeyboardMarkup | None:
     miniapp_url = os.getenv("MINIAPP_URL", "").rstrip("/")
@@ -29,9 +31,15 @@ def _webapp_keyboard(fen: str) -> InlineKeyboardMarkup | None:
     if public_url:
         query["api"] = public_url
     url = f"{miniapp_url}?{urlencode(query)}"
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="⚔️ Open Training Board", web_app=WebAppInfo(url=url))
-    ]])
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⚔️ Open Training Board", web_app=WebAppInfo(url=url)
+                )
+            ]
+        ]
+    )
 
 
 @router.message(Command("attack-training"))

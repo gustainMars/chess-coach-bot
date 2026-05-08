@@ -1,9 +1,10 @@
-import pytest
 from bot.services.stats import aggregate_openings, top_openings
 from bot.domain.opening import Outcome, OpeningStat
 
 
-def make_game(white_username: str, black_username: str, white_result: str, eco: str, eco_url: str) -> dict:
+def make_game(
+    white_username: str, black_username: str, white_result: str, eco: str, eco_url: str
+) -> dict:
     pgn = (
         f'[White "{white_username}"]\n'
         f'[Black "{black_username}"]\n'
@@ -13,7 +14,10 @@ def make_game(white_username: str, black_username: str, white_result: str, eco: 
     )
     return {
         "white": {"username": white_username, "result": white_result},
-        "black": {"username": black_username, "result": "checkmated" if white_result == "win" else "win"},
+        "black": {
+            "username": black_username,
+            "result": "checkmated" if white_result == "win" else "win",
+        },
         "pgn": pgn,
     }
 
@@ -68,7 +72,12 @@ def test_aggregate_openings_case_insensitive_username():
 def test_top_openings_returns_top_3():
     openings = {
         "C60": {"name": "Ruy Lopez", Outcome.WIN: 10, Outcome.LOSS: 5, Outcome.DRAW: 5},
-        "D00": {"name": "Queens Pawn", Outcome.WIN: 5, Outcome.LOSS: 3, Outcome.DRAW: 0},
+        "D00": {
+            "name": "Queens Pawn",
+            Outcome.WIN: 5,
+            Outcome.LOSS: 3,
+            Outcome.DRAW: 0,
+        },
         "A00": {"name": "Rare", Outcome.WIN: 1, Outcome.LOSS: 0, Outcome.DRAW: 0},
         "E00": {"name": "Indian", Outcome.WIN: 8, Outcome.LOSS: 4, Outcome.DRAW: 2},
     }
@@ -102,5 +111,11 @@ def test_opening_stat_winrate_zero_total():
 
 
 def test_opening_stat_winrate_boundaries():
-    assert OpeningStat(eco="X", name="X", total=100, wins=45, losses=55, draws=0).winrate == 45
-    assert OpeningStat(eco="X", name="X", total=100, wins=55, losses=45, draws=0).winrate == 55
+    assert (
+        OpeningStat(eco="X", name="X", total=100, wins=45, losses=55, draws=0).winrate
+        == 45
+    )
+    assert (
+        OpeningStat(eco="X", name="X", total=100, wins=55, losses=45, draws=0).winrate
+        == 55
+    )

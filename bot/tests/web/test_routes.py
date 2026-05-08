@@ -9,7 +9,9 @@ from aiohttp.test_utils import TestClient, TestServer
 from bot.web.routes import create_web_app
 
 _BOT_TOKEN = "123456:test-token"
-_SIMPLE_FEN = "r7/8/8/8/8/8/8/4K3 w - - 0 1"  # black rook a8, white king e1 — neither attacked
+_SIMPLE_FEN = (
+    "r7/8/8/8/8/8/8/4K3 w - - 0 1"  # black rook a8, white king e1 — neither attacked
+)
 
 
 def _make_init_data(**fields: str) -> str:

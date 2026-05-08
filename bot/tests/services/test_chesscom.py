@@ -14,8 +14,12 @@ def make_response(status_code: int, json_data: dict) -> MagicMock:
 async def test_get_recent_games_returns_games():
     from bot.services.chesscom import get_recent_games
 
-    archives_resp = make_response(200, {"archives": ["https://api.chess.com/pub/player/testuser/games/2024/01"]})
-    games_resp = make_response(200, {"games": [{"pgn": "1. e4 e5", "white": {}, "black": {}}]})
+    archives_resp = make_response(
+        200, {"archives": ["https://api.chess.com/pub/player/testuser/games/2024/01"]}
+    )
+    games_resp = make_response(
+        200, {"games": [{"pgn": "1. e4 e5", "white": {}, "black": {}}]}
+    )
 
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(side_effect=[archives_resp, games_resp])
@@ -67,13 +71,16 @@ async def test_get_recent_games_no_archives():
 async def test_get_recent_games_num_months():
     from bot.services.chesscom import get_recent_games
 
-    archives_resp = make_response(200, {
-        "archives": [
-            "https://api.chess.com/pub/player/testuser/games/2023/11",
-            "https://api.chess.com/pub/player/testuser/games/2023/12",
-            "https://api.chess.com/pub/player/testuser/games/2024/01",
-        ]
-    })
+    archives_resp = make_response(
+        200,
+        {
+            "archives": [
+                "https://api.chess.com/pub/player/testuser/games/2023/11",
+                "https://api.chess.com/pub/player/testuser/games/2023/12",
+                "https://api.chess.com/pub/player/testuser/games/2024/01",
+            ]
+        },
+    )
     games_resp_1 = make_response(200, {"games": [{"pgn": "1. d4"}]})
     games_resp_2 = make_response(200, {"games": [{"pgn": "1. e4"}]})
 
@@ -124,6 +131,7 @@ async def test_get_user_info_not_found():
 
 
 # --- get_player_rating ---
+
 
 @pytest.mark.asyncio
 async def test_get_player_rating_returns_rapid_rating():

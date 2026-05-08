@@ -22,7 +22,9 @@ def validate_capture_selection(
     return capturable - selected, selected - capturable
 
 
-def generate_attack_position(min_captures: int = 2, max_captures: int = 5) -> chess.Board:
+def generate_attack_position(
+    min_captures: int = 2, max_captures: int = 5
+) -> chess.Board:
     for _ in range(50):
         board = chess.Board()
         num_moves = random.randint(14, 26)
@@ -41,5 +43,7 @@ def generate_attack_position(min_captures: int = 2, max_captures: int = 5) -> ch
 
 def _fallback_position() -> chess.Board:
     # Sicilian middlegame with multiple captures available
-    board = chess.Board("r1bqkb1r/pp3ppp/2nppn2/8/3NP3/2N1B3/PPP2PPP/R2QKB1R w KQkq - 0 8")
+    board = chess.Board(
+        "r1bqkb1r/pp3ppp/2nppn2/8/3NP3/2N1B3/PPP2PPP/R2QKB1R w KQkq - 0 8"
+    )
     return board

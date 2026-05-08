@@ -3,7 +3,10 @@ import os
 import chess
 from aiohttp import web
 
-from bot.services.attack_generator import get_capturable_squares, validate_capture_selection
+from bot.services.attack_generator import (
+    get_capturable_squares,
+    validate_capture_selection,
+)
 from bot.utils.telegram_auth import validate_init_data
 
 _CORS_HEADERS = {

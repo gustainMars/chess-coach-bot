@@ -57,7 +57,7 @@ async def test_get_next_unreviewed_returns_none_when_no_blunders(session: AsyncS
 async def test_get_next_unreviewed_returns_oldest_first(session: AsyncSession):
     await _make_user(session)
     first = await _make_blunder(session, eco="C60", name="Ruy Lopez")
-    second = await _make_blunder(session, eco="D00", name="Queens Pawn")
+    await _make_blunder(session, eco="D00", name="Queens Pawn")
 
     blunder, reset = await get_next_unreviewed_blunder(session, telegram_id=1)
     assert blunder is not None
@@ -125,7 +125,7 @@ async def test_get_next_unreviewed_isolated_per_user(session: AsyncSession):
     await mark_blunder_reviewed(session, b.id)
 
     # User 1 has all blunders reviewed → should auto-reset for user 1
-    blunder1, reset1 = await get_next_unreviewed_blunder(session, telegram_id=1)
+    _, reset1 = await get_next_unreviewed_blunder(session, telegram_id=1)
     assert reset1 is True
 
     # User 2 has no blunders → returns None, no reset

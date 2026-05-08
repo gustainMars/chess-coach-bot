@@ -8,7 +8,9 @@ class Messages:
     ANALYZE_USAGE = "Use like this: /analyze <username> [months]\nExample: /analyze magnuscarlsen 3\n_months: 1–6, default 1_"
     DEBUG_USAGE = "Use: /debug <username>"
 
-    REPORT_HEADER = "♟️ *Openings Analysis — {username}*\n_{total} matches on the last month_\n\n"
+    REPORT_HEADER = (
+        "♟️ *Openings Analysis — {username}*\n_{total} matches on the last month_\n\n"
+    )
     PLAYING_WHITE = "*Playing as White:*\n"
     PLAYING_BLACK = "\n*Playing as Black:*\n"
     NO_WHITE_DATA = "_No data for white openings_\n"
@@ -24,14 +26,20 @@ class Messages:
         "You have no recorded blunders yet.\n"
         "Run /analyze <username> first to analyze your games."
     )
-    STUDY_QUESTION = "♟️ *{opening_name}* — {quality}\n\nWhat is the best move in this position?"
-    STUDY_CORRECT = "✅ *Correct!* The best move was *{expected}*.\n\nUse /study for the next card."
+    STUDY_QUESTION = (
+        "♟️ *{opening_name}* — {quality}\n\nWhat is the best move in this position?"
+    )
+    STUDY_CORRECT = (
+        "✅ *Correct!* The best move was *{expected}*.\n\nUse /study for the next card."
+    )
     STUDY_WRONG = "❌ You played *{user_move}*, but the best move was *{expected}*.\n\nUse /study for the next card."
     STUDY_INVALID_MOVE = (
         "⚠️ I couldn't understand that move. "
         "Reply with SAN (e.g. *Nf3*, *O-O*) or UCI format (e.g. *g1f3*)."
     )
-    STUDY_DECK_RESET = "🎉 You've reviewed all your blunders! Starting the deck over.\n\n"
+    STUDY_DECK_RESET = (
+        "🎉 You've reviewed all your blunders! Starting the deck over.\n\n"
+    )
 
     ATTACK_QUESTION = (
         "⚔️ *Attack Training*\n\n"

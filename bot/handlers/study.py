@@ -70,7 +70,9 @@ async def handle_study_answer(message: Message, state: FSMContext):
             blunder = await repository.get_blunder_by_id(session, blunder_id)
             if blunder is None:
                 await state.clear()
-                await message.answer("Could not find the current question. Use /study to start again.")
+                await message.answer(
+                    "Could not find the current question. Use /study to start again."
+                )
                 return
 
             user_move = validate_move_input(message.text or "", blunder.fen)
@@ -91,7 +93,9 @@ async def handle_study_answer(message: Message, state: FSMContext):
             await repository.mark_blunder_reviewed(session, blunder.id)
 
     except Exception:
-        logging.exception("Error processing study answer for user %s", message.from_user.id)
+        logging.exception(
+            "Error processing study answer for user %s", message.from_user.id
+        )
         await state.clear()
         await message.answer("Something went wrong. Use /study to try again.")
         return
