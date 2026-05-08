@@ -12,7 +12,7 @@ MUTUAL_CAPTURE_FEN = "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 
 # Black's turn — white pawn e4 attacks f5, white pawn g6 attacks h7
 BLACK_TURN_FEN = "6k1/7p/6P1/5p2/4P3/8/8/6K1 b - - 0 1"
 
-# Starting position — no captures available
+# Starting position — no captures at all
 NO_CAPTURE_FEN = chess.STARTING_FEN
 
 
@@ -112,7 +112,7 @@ def test_generate_returns_board():
     assert isinstance(generate_attack_position(), chess.Board)
 
 
-def test_generate_attack_position_has_captures():
+def test_generate_has_min_captures():
     board = generate_attack_position(min_captures=2)
     assert len(get_capturable_squares(board)) >= 2
 
@@ -121,7 +121,7 @@ def test_generate_attack_position_not_in_check():
     assert not generate_attack_position().is_check()
 
 
-def test_generate_attack_position_respects_min_max():
+def test_generate_respects_min_max():
     board = generate_attack_position(min_captures=2, max_captures=4)
     assert 2 <= len(get_capturable_squares(board)) <= 4
 

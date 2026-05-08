@@ -11,6 +11,12 @@ from aiogram.types import (
 )
 
 from bot.domain.messages import Messages
+from bot.services.attack_generator import (
+    generate_attack_position,
+    get_capturable_squares,
+    validate_capture_selection,
+)
+from bot.services.board_renderer import fen_to_png
 
 router = Router()
 
