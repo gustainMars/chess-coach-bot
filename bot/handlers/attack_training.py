@@ -20,15 +20,15 @@ from bot.services.board_renderer import fen_to_png
 
 router = Router()
 
-_MINIAPP_URL    = os.getenv("MINIAPP_URL", "").rstrip("/")
-_WEBAPP_PUBLIC_URL = os.getenv("WEBAPP_PUBLIC_URL", "").rstrip("/")
-
-
-def _webapp_keyboard(fen: str) -> InlineKeyboardMarkup:
+def _webapp_keyboard(fen: str) -> InlineKeyboardMarkup | None:
+    miniapp_url = os.getenv("MINIAPP_URL", "").rstrip("/")
+    if not miniapp_url:
+        return None
     query: dict[str, str] = {"fen": fen}
-    if _WEBAPP_PUBLIC_URL:
-        query["api"] = _WEBAPP_PUBLIC_URL
-    url = f"{_MINIAPP_URL}?{urlencode(query)}"
+    public_url = os.getenv("WEBAPP_PUBLIC_URL", "").rstrip("/")
+    if public_url:
+        query["api"] = public_url
+    url = f"{miniapp_url}?{urlencode(query)}"
     return InlineKeyboardMarkup(inline_keyboard=[[
         InlineKeyboardButton(text="⚔️ Open Training Board", web_app=WebAppInfo(url=url))
     ]])
