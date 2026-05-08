@@ -1,10 +1,14 @@
 import asyncio
 import logging
 import os
-from aiohttp import web
+
+# load_dotenv must run before any local imports so module-level os.getenv() calls
+# in handlers, middleware, and services read the correct values from .env
 from dotenv import load_dotenv
+load_dotenv()
+
+from aiohttp import web
 from aiogram import Bot, Dispatcher
-from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.fsm.storage.memory import MemoryStorage
 from bot.handlers.start import router as start_router
 from bot.handlers.analyze import router as analyze_router
@@ -13,8 +17,6 @@ from bot.handlers.attack_training import router as attack_training_router
 from bot.db.database import init_db
 from bot.web.routes import create_web_app
 from bot.middleware.qa_guard import QAGuardMiddleware
-
-load_dotenv()
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
