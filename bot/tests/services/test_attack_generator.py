@@ -1,9 +1,16 @@
 import chess
 
-from bot.services.attack_generator import generate_attack_position, get_capturable_squares
+from bot.services.attack_generator import (
+    generate_attack_position,
+    get_capturable_squares,
+    validate_capture_selection,
+)
 
-# FEN where White can capture d5 (exd5) and Black can capture e4 (dxe4)
-MULTI_CAPTURE_FEN = "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3"
+# Both sides have captures: White exd5, Black dxe4
+MUTUAL_CAPTURE_FEN = "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3"
+
+# Black's turn — white pawn e4 attacks f5, white pawn g6 attacks h7
+BLACK_TURN_FEN = "6k1/7p/6P1/5p2/4P3/8/8/6K1 b - - 0 1"
 
 # Starting position — no captures available
 NO_CAPTURE_FEN = chess.STARTING_FEN
@@ -21,22 +28,21 @@ def test_capturable_includes_both_sides_attacks():
 
 
 def test_capturable_finds_squares_when_not_current_player_turn():
-    """White pawns e4 and g6 attack black pawns f5 and h7 even when it's Black's turn."""
+    """White pawns attack black pawns f5 and h7 even when it's Black's turn."""
     board = chess.Board(BLACK_TURN_FEN)
     assert board.turn == chess.BLACK
     squares = get_capturable_squares(board)
-    assert len(squares) >= 1
-    assert chess.D5 in squares  # White can capture on d5
+    assert chess.F5 in squares  # white pawn e4 attacks f5
+    assert chess.H7 in squares  # white pawn g6 attacks h7
 
 
 def test_get_capturable_squares_empty_when_no_captures():
     board = chess.Board(NO_CAPTURE_FEN)
-    squares = get_capturable_squares(board)
-    assert len(squares) == 0
+    assert get_capturable_squares(board) == set()
 
 
 def test_get_capturable_squares_returns_set_of_squares():
-    board = chess.Board(MULTI_CAPTURE_FEN)
+    board = chess.Board(MUTUAL_CAPTURE_FEN)
     squares = get_capturable_squares(board)
     assert isinstance(squares, set)
     for sq in squares:
@@ -108,21 +114,17 @@ def test_generate_returns_board():
 
 def test_generate_attack_position_has_captures():
     board = generate_attack_position(min_captures=2)
-    capturable = get_capturable_squares(board)
-    assert len(capturable) >= 2
+    assert len(get_capturable_squares(board)) >= 2
 
 
 def test_generate_attack_position_not_in_check():
-    board = generate_attack_position()
-    assert not board.is_check()
+    assert not generate_attack_position().is_check()
 
 
 def test_generate_attack_position_respects_min_max():
     board = generate_attack_position(min_captures=2, max_captures=4)
-    capturable = get_capturable_squares(board)
-    assert 2 <= len(capturable) <= 4
+    assert 2 <= len(get_capturable_squares(board)) <= 4
 
 
 def test_generate_attack_position_is_valid_position():
-    board = generate_attack_position()
-    assert board.is_valid()
+    assert generate_attack_position().is_valid()

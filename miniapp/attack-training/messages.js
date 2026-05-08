@@ -2,6 +2,7 @@ export const MESSAGES = {
   en: {
     title:           '⚔️ Attack Training',
     subtitle:        'Tap all pieces that can be captured',
+    loading:         'Loading position…',
     instruction:     'Select pieces, then press Check',
     checkBtn:        '✅ Check',
     checking:        'Checking…',
@@ -16,6 +17,7 @@ export const MESSAGES = {
   pt: {
     title:           '⚔️ Treino de Ataques',
     subtitle:        'Toque todas as peças que podem ser capturadas',
+    loading:         'Carregando posição…',
     instruction:     'Selecione as peças e pressione Verificar',
     checkBtn:        '✅ Verificar',
     checking:        'Verificando…',

@@ -55,7 +55,7 @@ async def upsert_opening_stat(
             losses=losses,
             draws=draws,
         )
-        # rating is intentionally excluded — only written on the first INSERT of the month
+        # rating excluded: only written on first INSERT of the month
         .on_conflict_do_update(
             index_elements=["chesscom_username", "eco", "color", "month", "year"],
             set_={"total": total, "wins": wins, "losses": losses, "draws": draws},

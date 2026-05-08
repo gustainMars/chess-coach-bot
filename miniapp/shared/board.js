@@ -3,9 +3,11 @@ const SVG_NS = 'http://www.w3.org/2000/svg';
 const LIGHT = '#F0D9B5';
 const DARK  = '#B58863';
 
-const UNICODE = {
-  K: '♔', Q: '♕', R: '♖', B: '♗', N: '♘', P: '♙',
-  k: '♚', q: '♛', r: '♜', b: '♝', n: '♞', p: '♟',
+const PIECES_CDN =
+  'https://cdn.jsdelivr.net/gh/lichess-org/lila@master/public/piece/cburnett/';
+const PIECE_NAMES = {
+  K: 'wK', Q: 'wQ', R: 'wR', B: 'wB', N: 'wN', P: 'wP',
+  k: 'bK', q: 'bQ', r: 'bR', b: 'bB', n: 'bN', p: 'bP',
 };
 
 function svgEl(tag, attrs = {}) {
@@ -65,8 +67,8 @@ export function buildBoard(svgEl, board, { flipped, onSquareClick }) {
       svgEl.appendChild(ring);
 
       if (board[sq]) {
-        const text = svgEl_piece(col, row, UNICODE[board[sq]] ?? '');
-        svgEl.appendChild(text);
+        const img = svgEl_piece(col, row, board[sq]);
+        if (img) svgEl.appendChild(img);
       }
 
       const hit = svgEl_rect(col, row, 'transparent');
@@ -119,15 +121,12 @@ function svgEl_circle(col, row, stroke) {
   });
 }
 
-function svgEl_piece(col, row, glyph) {
-  const t = svgEl('text', {
-    x: col + 0.5, y: row + 0.80,
-    'text-anchor': 'middle',
-    'font-size': '0.82',
-    'font-family': "'Segoe UI Symbol','Apple Symbols','DejaVu Sans',sans-serif",
+function svgEl_piece(col, row, pieceChar) {
+  const name = PIECE_NAMES[pieceChar];
+  if (!name) return null;
+  return svgEl('image', {
+    href: `${PIECES_CDN}${name}.svg`,
+    x: col, y: row, width: 1, height: 1,
     'pointer-events': 'none',
-    'user-select': 'none',
   });
-  t.textContent = glyph;
-  return t;
 }

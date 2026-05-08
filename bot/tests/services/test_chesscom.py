@@ -1,5 +1,7 @@
-import pytest
+from datetime import datetime, timedelta, timezone
+
 import httpx
+import pytest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 
@@ -10,16 +12,26 @@ def make_response(status_code: int, json_data: dict) -> MagicMock:
     return resp
 
 
+def _current_month_url() -> str:
+    now = datetime.now(timezone.utc)
+    return f"https://api.chess.com/pub/player/testuser/games/{now.year}/{now.month:02d}"
+
+
+def _recent_ts() -> int:
+    return int((datetime.now(timezone.utc) - timedelta(days=10)).timestamp())
+
+
+def _old_ts() -> int:
+    return int((datetime.now(timezone.utc) - timedelta(days=60)).timestamp())
+
+
 @pytest.mark.asyncio
 async def test_get_recent_games_returns_games():
     from bot.services.chesscom import get_recent_games
 
-    archives_resp = make_response(
-        200, {"archives": ["https://api.chess.com/pub/player/testuser/games/2024/01"]}
-    )
-    games_resp = make_response(
-        200, {"games": [{"pgn": "1. e4 e5", "white": {}, "black": {}}]}
-    )
+    game = {"pgn": "1. e4 e5", "end_time": _recent_ts(), "white": {}, "black": {}}
+    archives_resp = make_response(200, {"archives": [_current_month_url()]})
+    games_resp = make_response(200, {"games": [game]})
 
     mock_client = AsyncMock()
     mock_client.get = AsyncMock(side_effect=[archives_resp, games_resp])
@@ -31,6 +43,48 @@ async def test_get_recent_games_returns_games():
 
     assert len(result) == 1
     assert result[0]["pgn"] == "1. e4 e5"
+
+
+@pytest.mark.asyncio
+async def test_get_recent_games_filters_old_games():
+    from bot.services.chesscom import get_recent_games
+
+    archives_resp = make_response(200, {"archives": [_current_month_url()]})
+    games_resp = make_response(
+        200, {"games": [{"pgn": "1. d4", "end_time": _old_ts()}]}
+    )
+
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(side_effect=[archives_resp, games_resp])
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("bot.services.chesscom.httpx.AsyncClient", return_value=mock_client):
+        result = await get_recent_games("testuser")
+
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_recent_games_skips_old_archives():
+    from bot.services.chesscom import get_recent_games
+
+    old_url = "https://api.chess.com/pub/player/testuser/games/2020/01"
+    archives_resp = make_response(200, {"archives": [old_url, _current_month_url()]})
+    games_resp = make_response(
+        200, {"games": [{"pgn": "1. e4", "end_time": _recent_ts()}]}
+    )
+
+    mock_client = AsyncMock()
+    mock_client.get = AsyncMock(side_effect=[archives_resp, games_resp])
+    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+    mock_client.__aexit__ = AsyncMock(return_value=False)
+
+    with patch("bot.services.chesscom.httpx.AsyncClient", return_value=mock_client):
+        result = await get_recent_games("testuser")
+
+    assert len(result) == 1
+    assert mock_client.get.call_count == 2  # archives fetch + only current month
 
 
 @pytest.mark.asyncio
@@ -66,33 +120,6 @@ async def test_get_recent_games_no_archives():
 
     assert result == []
 
-
-@pytest.mark.asyncio
-async def test_get_recent_games_num_months():
-    from bot.services.chesscom import get_recent_games
-
-    archives_resp = make_response(
-        200,
-        {
-            "archives": [
-                "https://api.chess.com/pub/player/testuser/games/2023/11",
-                "https://api.chess.com/pub/player/testuser/games/2023/12",
-                "https://api.chess.com/pub/player/testuser/games/2024/01",
-            ]
-        },
-    )
-    games_resp_1 = make_response(200, {"games": [{"pgn": "1. d4"}]})
-    games_resp_2 = make_response(200, {"games": [{"pgn": "1. e4"}]})
-
-    mock_client = AsyncMock()
-    mock_client.get = AsyncMock(side_effect=[archives_resp, games_resp_1, games_resp_2])
-    mock_client.__aenter__ = AsyncMock(return_value=mock_client)
-    mock_client.__aexit__ = AsyncMock(return_value=False)
-
-    with patch("bot.services.chesscom.httpx.AsyncClient", return_value=mock_client):
-        result = await get_recent_games("testuser", num_months=2)
-
-    assert len(result) == 2
 
 
 @pytest.mark.asyncio

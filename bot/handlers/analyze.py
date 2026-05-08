@@ -93,11 +93,6 @@ async def cmd_analyze(message: Message):
     username_og = args[1].strip()
     username = args[1].strip().lower()
 
-    try:
-        months = max(1, min(6, int(args[2]))) if len(args) >= 3 else 1
-    except ValueError:
-        months = 1
-
     status_msg = await message.answer(
         Messages.SEARCHING_USER.format(username=username), parse_mode="Markdown"
     )
@@ -109,7 +104,7 @@ async def cmd_analyze(message: Message):
         )
         return
 
-    games = await get_recent_games(username, num_months=months)
+    games = await get_recent_games(username)
     if not games:
         await status_msg.edit_text(
             Messages.NO_GAMES_FOUND.format(username=username), parse_mode="Markdown"

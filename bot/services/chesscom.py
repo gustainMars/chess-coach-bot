@@ -1,10 +1,21 @@
+from datetime import datetime, timedelta, timezone
+
 import httpx
 
 BASE_URL = "https://api.chess.com/pub"
 
 
-async def get_recent_games(username: str, num_months: int = 1) -> list:
-    """Search for recent games played by a Chess.com user."""
+def _archive_ym(url: str) -> tuple[int, int]:
+    parts = url.rstrip("/").split("/")
+    return int(parts[-2]), int(parts[-1])
+
+
+async def get_recent_games(username: str) -> list:
+    """Return games from the last 30 days for a Chess.com user."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    cutoff_ym = (cutoff.year, cutoff.month)
+    cutoff_ts = cutoff.timestamp()
+
     async with httpx.AsyncClient() as client:
         response = await client.get(
             f"{BASE_URL}/player/{username}/games/archives",
@@ -15,19 +26,22 @@ async def get_recent_games(username: str, num_months: int = 1) -> list:
             return None
 
         archives = response.json().get("archives", [])
-
         if not archives:
             return []
 
-        recent_archives = archives[-num_months:]
-        all_games = []
+        relevant = [a for a in archives if _archive_ym(a) >= cutoff_ym]
+        if not relevant:
+            relevant = archives[-1:]
 
-        for archive_url in recent_archives:
+        all_games = []
+        for archive_url in relevant:
             resp = await client.get(
-                archive_url, headers={"User-Agent": "ChessOpeningsCoachBot/1.0"}
+                archive_url,
+                headers={"User-Agent": "ChessOpeningsCoachBot/1.0"},
             )
-            games = resp.json().get("games", [])
-            all_games.extend(games)
+            for game in resp.json().get("games", []):
+                if game.get("end_time", 0) >= cutoff_ts:
+                    all_games.append(game)
 
     return all_games
 

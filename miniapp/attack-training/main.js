@@ -1,7 +1,7 @@
-import { getT }                               from '../shared/i18n.js';
+import { getT }                                   from '../shared/i18n.js';
 import { parseFen, buildBoard, renderHighlights } from '../shared/board.js';
-import { checkCaptures }                      from '../shared/api.js';
-import { MESSAGES }                           from './messages.js';
+import { checkCaptures, getPosition }             from '../shared/api.js';
+import { MESSAGES }                               from './messages.js';
 
 // ── Telegram init ─────────────────────────────────────────────────────────────
 const tg = window.Telegram?.WebApp;
@@ -10,43 +10,78 @@ if (tg) { tg.ready(); tg.expand(); }
 // ── i18n ──────────────────────────────────────────────────────────────────────
 const T = getT(MESSAGES);
 
-// ── URL params ────────────────────────────────────────────────────────────────
-const params  = new URLSearchParams(location.search);
-const FEN     = params.get('fen') || 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
-const API_URL = (params.get('api') || '').replace(/\/$/, '');
+// ── Config ────────────────────────────────────────────────────────────────────
+const API_URL = (new URLSearchParams(location.search).get('api') || '').replace(/\/$/, '');
 
-// ── Apply static text ─────────────────────────────────────────────────────────
+// ── Static UI text ────────────────────────────────────────────────────────────
 document.getElementById('ui-title').textContent    = T.title;
 document.getElementById('ui-subtitle').textContent = T.subtitle;
-document.getElementById('status').textContent      = T.instruction;
 document.getElementById('check-btn').textContent   = T.checkBtn;
 
-// ── Build board ───────────────────────────────────────────────────────────────
-const { board, turn } = parseFen(FEN);
-const svgBoard = document.getElementById('board');
-
-const { squares, files } = buildBoard(svgBoard, board, {
-  flipped: turn === 'b',
-  onSquareClick: handleSquareClick,
-});
-
-// File coordinate labels
-const fileLabelEl = document.getElementById('file-labels');
-files.forEach(f => {
-  const span = document.createElement('span');
-  span.textContent = f;
-  fileLabelEl.appendChild(span);
-});
-
 // ── State ─────────────────────────────────────────────────────────────────────
-let selected   = new Set();
-let frozen     = false;
-let lastMissed = new Set();
-let lastExtra  = new Set();
+let currentFen   = '';
+let currentBoard = {};
+let squares      = {};
+let selected     = new Set();
+let lastMissed   = new Set();
+let lastExtra    = new Set();
+let frozen       = false;
+let resultMode   = false;
+
+// ── Board ─────────────────────────────────────────────────────────────────────
+function rebuildBoard(fen) {
+  const svgBoard = document.getElementById('board');
+  while (svgBoard.firstChild) svgBoard.removeChild(svgBoard.firstChild);
+
+  const { board, turn } = parseFen(fen);
+  currentBoard = board;
+
+  const { squares: newSquares, files } = buildBoard(svgBoard, board, {
+    flipped: turn === 'b',
+    onSquareClick: handleSquareClick,
+  });
+  squares = newSquares;
+
+  const fileLabelEl = document.getElementById('file-labels');
+  fileLabelEl.innerHTML = '';
+  files.forEach(f => {
+    const span = document.createElement('span');
+    span.textContent = f;
+    fileLabelEl.appendChild(span);
+  });
+}
+
+// ── Load position from API ────────────────────────────────────────────────────
+async function loadPosition() {
+  selected.clear();
+  lastMissed = new Set();
+  lastExtra  = new Set();
+  frozen     = false;
+  resultMode = false;
+
+  const status = document.getElementById('status');
+  const btn    = document.getElementById('check-btn');
+  status.textContent = T.loading;
+  status.className   = '';
+  btn.disabled       = true;
+  btn.textContent    = T.checkBtn;
+  document.getElementById('selected-info').textContent = '';
+
+  try {
+    const data = await getPosition({ apiUrl: API_URL, initData: tg?.initData ?? '' });
+    currentFen = data.fen;
+    rebuildBoard(currentFen);
+    status.textContent = T.instruction;
+    render();
+  } catch {
+    status.textContent = T.connectionError;
+    status.className   = 'wrong';
+  }
+}
 
 // ── Interaction ───────────────────────────────────────────────────────────────
 function handleSquareClick(sq) {
-  if (frozen || !board[sq]) return;
+  if (frozen || !currentBoard[sq]) return;
   if (selected.has(sq)) selected.delete(sq);
   else selected.add(sq);
   render();
@@ -54,13 +89,12 @@ function handleSquareClick(sq) {
 
 function render() {
   renderHighlights(squares, selected, lastMissed, lastExtra);
-
   const btn  = document.getElementById('check-btn');
   const info = document.getElementById('selected-info');
 
-  if (!frozen) {
-    btn.disabled    = selected.size === 0;
-    btn.textContent = T.checkBtn;
+  if (!resultMode) {
+    btn.disabled     = selected.size === 0;
+    btn.textContent  = T.checkBtn;
     info.textContent = selected.size > 0
       ? T.selectedInfo([...selected].sort().join(', '))
       : '';
@@ -79,7 +113,7 @@ async function submitAnswer() {
   try {
     const data = await checkCaptures({
       apiUrl:   API_URL,
-      fen:      FEN,
+      fen:      currentFen,
       selected: [...selected],
       initData: tg?.initData ?? '',
     });
@@ -95,17 +129,18 @@ async function submitAnswer() {
 }
 
 function showResult(data, btn, status) {
+  lastMissed = new Set(data.missed ?? []);
+  lastExtra  = new Set(data.extra  ?? []);
+  renderHighlights(squares, selected, lastMissed, lastExtra);
+
   if (data.correct) {
     status.textContent = T.correct(selected.size);
     status.className   = 'correct';
     btn.textContent    = T.newPosition;
     btn.disabled       = false;
+    resultMode         = true;
     document.getElementById('selected-info').textContent = '';
-    btn.onclick = () => tg ? tg.close() : window.close();
   } else {
-    lastMissed = new Set(data.missed ?? []);
-    lastExtra  = new Set(data.extra  ?? []);
-
     const m = [...lastMissed].sort().join(', ');
     const e = [...lastExtra].sort().join(', ');
     status.textContent = (lastMissed.size && lastExtra.size)
@@ -113,18 +148,22 @@ function showResult(data, btn, status) {
       : lastMissed.size ? T.missed(m) : T.extra(e);
     status.className = 'wrong';
 
-    // Unfreeze after 2 s so the user can adjust the selection
     setTimeout(() => {
-      frozen = false;
-      lastMissed.clear();
-      lastExtra.clear();
+      frozen     = false;
+      lastMissed = new Set();
+      lastExtra  = new Set();
       status.textContent = T.instruction;
       status.className   = '';
       render();
     }, 2000);
   }
-  render();
 }
 
-document.getElementById('check-btn').addEventListener('click', submitAnswer);
-render();
+// ── Button ────────────────────────────────────────────────────────────────────
+document.getElementById('check-btn').addEventListener('click', () => {
+  if (resultMode) loadPosition();
+  else submitAnswer();
+});
+
+// ── Init ──────────────────────────────────────────────────────────────────────
+loadPosition();
