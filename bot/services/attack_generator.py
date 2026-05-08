@@ -4,7 +4,7 @@ import chess
 
 
 def get_capturable_squares(board: chess.Board) -> set[int]:
-    """Return squares of pieces that can be captured by either side."""
+    """Return squares of pieces attackable by the opponent side, regardless of whose turn it is."""
     squares: set[int] = set()
     for square in chess.SQUARES:
         piece = board.piece_at(square)
@@ -18,7 +18,7 @@ def get_capturable_squares(board: chess.Board) -> set[int]:
 def validate_capture_selection(
     capturable: set[str], selected: set[str]
 ) -> tuple[set[str], set[str]]:
-    """Return (missed, extra) for the user's selection of square names."""
+    """Return (missed, extra) comparing user's selected squares against the correct set."""
     return capturable - selected, selected - capturable
 
 
