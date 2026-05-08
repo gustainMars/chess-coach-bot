@@ -1,5 +1,4 @@
 import chess
-import pytest
 
 from bot.services.attack_generator import (
     generate_attack_position,
@@ -10,7 +9,7 @@ from bot.services.attack_generator import (
 # Both sides have captures: White exd5, Black dxe4
 MUTUAL_CAPTURE_FEN = "rnbqkbnr/ppp2ppp/4p3/3p4/3PP3/8/PPP2PPP/RNBQKBNR w KQkq - 0 3"
 
-# Black's turn — white pawn on e4 attacks f5, g6 attacks h7 (black pawns)
+# Black's turn — white pawn e4 attacks f5, white pawn g6 attacks h7
 BLACK_TURN_FEN = "6k1/7p/6P1/5p2/4P3/8/8/6K1 b - - 0 1"
 
 # Starting position — no captures at all
@@ -18,6 +17,7 @@ NO_CAPTURE_FEN = chess.STARTING_FEN
 
 
 # ── get_capturable_squares ────────────────────────────────────────────────────
+
 
 def test_capturable_includes_both_sides_attacks():
     """d5 (attacked by white e4) and e4 (attacked by black d5) both capturable."""
@@ -28,22 +28,20 @@ def test_capturable_includes_both_sides_attacks():
 
 
 def test_capturable_finds_squares_when_not_current_player_turn():
-    """White pawns e4 and g6 attack black pawns f5 and h7 even when it's Black's turn."""
+    """White pawns attack black pawns f5 and h7 even when it's Black's turn."""
     board = chess.Board(BLACK_TURN_FEN)
     assert board.turn == chess.BLACK
     squares = get_capturable_squares(board)
-    # f5 is attacked by white pawn e4 (even though it's Black's turn)
-    assert chess.F5 in squares
-    # h7 is attacked by white pawn g6
-    assert chess.H7 in squares
+    assert chess.F5 in squares  # white pawn e4 attacks f5
+    assert chess.H7 in squares  # white pawn g6 attacks h7
 
 
-def test_capturable_empty_when_no_captures():
+def test_get_capturable_squares_empty_when_no_captures():
     board = chess.Board(NO_CAPTURE_FEN)
     assert get_capturable_squares(board) == set()
 
 
-def test_capturable_returns_set_of_ints():
+def test_get_capturable_squares_returns_set_of_squares():
     board = chess.Board(MUTUAL_CAPTURE_FEN)
     squares = get_capturable_squares(board)
     assert isinstance(squares, set)
@@ -53,6 +51,7 @@ def test_capturable_returns_set_of_ints():
 
 
 # ── validate_capture_selection ────────────────────────────────────────────────
+
 
 def test_validate_all_correct_returns_empty_sets():
     capturable = {"e4", "d5"}
@@ -108,6 +107,7 @@ def test_validate_both_empty():
 
 # ── generate_attack_position ──────────────────────────────────────────────────
 
+
 def test_generate_returns_board():
     assert isinstance(generate_attack_position(), chess.Board)
 
@@ -117,15 +117,14 @@ def test_generate_has_min_captures():
     assert len(get_capturable_squares(board)) >= 2
 
 
-def test_generate_not_in_check():
+def test_generate_attack_position_not_in_check():
     assert not generate_attack_position().is_check()
 
 
 def test_generate_respects_min_max():
     board = generate_attack_position(min_captures=2, max_captures=4)
-    n = len(get_capturable_squares(board))
-    assert 2 <= n <= 4
+    assert 2 <= len(get_capturable_squares(board)) <= 4
 
 
-def test_generate_is_valid_position():
+def test_generate_attack_position_is_valid_position():
     assert generate_attack_position().is_valid()

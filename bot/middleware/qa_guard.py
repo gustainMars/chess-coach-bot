@@ -4,8 +4,8 @@ from typing import Any, Awaitable, Callable
 from aiogram import BaseMiddleware
 from aiogram.types import CallbackQuery, Message, TelegramObject, User
 
-_IS_QA       = os.getenv("BOT_ENV", "").lower() == "qa"
-_ALLOWED_ID  = int(os.getenv("ALLOWED_USER_ID", "0"))
+_IS_QA = os.getenv("BOT_ENV", "").lower() == "qa"
+_ALLOWED_ID = int(os.getenv("ALLOWED_USER_ID", "0"))
 
 
 class QAGuardMiddleware(BaseMiddleware):
@@ -33,6 +33,8 @@ class QAGuardMiddleware(BaseMiddleware):
         if isinstance(event, Message):
             await event.answer("⛔ QA environment — private access only.")
         elif isinstance(event, CallbackQuery):
-            await event.answer("⛔ QA environment — private access only.", show_alert=True)
+            await event.answer(
+                "⛔ QA environment — private access only.", show_alert=True
+            )
 
         return None

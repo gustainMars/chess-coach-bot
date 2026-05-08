@@ -93,24 +93,27 @@ async def cmd_analyze(message: Message):
     username_og = args[1].strip()
     username = args[1].strip().lower()
 
-    try:
-        months = max(1, min(6, int(args[2]))) if len(args) >= 3 else 1
-    except ValueError:
-        months = 1
-
-    status_msg = await message.answer(Messages.SEARCHING_USER.format(username=username), parse_mode="Markdown")
+    status_msg = await message.answer(
+        Messages.SEARCHING_USER.format(username=username), parse_mode="Markdown"
+    )
 
     user_info = await get_user_info(username)
     if user_info is None:
-        await status_msg.edit_text(Messages.USER_NOT_FOUND.format(username=username), parse_mode="Markdown")
+        await status_msg.edit_text(
+            Messages.USER_NOT_FOUND.format(username=username), parse_mode="Markdown"
+        )
         return
 
-    games = await get_recent_games(username, num_months=months)
+    games = await get_recent_games(username)
     if not games:
-        await status_msg.edit_text(Messages.NO_GAMES_FOUND.format(username=username), parse_mode="Markdown")
+        await status_msg.edit_text(
+            Messages.NO_GAMES_FOUND.format(username=username), parse_mode="Markdown"
+        )
         return
 
-    await status_msg.edit_text(Messages.ANALYZING_GAMES.format(total=len(games)), parse_mode="Markdown")
+    await status_msg.edit_text(
+        Messages.ANALYZING_GAMES.format(total=len(games)), parse_mode="Markdown"
+    )
     white_stats, black_stats = _evaluate_games()
 
     report = _format_report(username_og, games, white_stats, black_stats)
@@ -119,14 +122,44 @@ async def cmd_analyze(message: Message):
         now = datetime.now(timezone.utc)
         rating = await get_player_rating(username)
         async with SessionFactory() as session:
-            await repository.upsert_user(session, telegram_id=message.from_user.id, chesscom_username=username)
+            await repository.upsert_user(
+                session, telegram_id=message.from_user.id, chesscom_username=username
+            )
             for stat in white_stats:
-                await repository.upsert_opening_stat(session, username, stat.eco, Color.WHITE, now.month, now.year, rating, stat.total, stat.wins, stat.losses, stat.draws)
+                await repository.upsert_opening_stat(
+                    session,
+                    username,
+                    stat.eco,
+                    Color.WHITE,
+                    now.month,
+                    now.year,
+                    rating,
+                    stat.total,
+                    stat.wins,
+                    stat.losses,
+                    stat.draws,
+                )
             for stat in black_stats:
-                await repository.upsert_opening_stat(session, username, stat.eco, Color.BLACK, now.month, now.year, rating, stat.total, stat.wins, stat.losses, stat.draws)
-            prev_rating = await repository.get_previous_rating(session, username, now.month, now.year)
+                await repository.upsert_opening_stat(
+                    session,
+                    username,
+                    stat.eco,
+                    Color.BLACK,
+                    now.month,
+                    now.year,
+                    rating,
+                    stat.total,
+                    stat.wins,
+                    stat.losses,
+                    stat.draws,
+                )
+            prev_rating = await repository.get_previous_rating(
+                session, username, now.month, now.year
+            )
             if rating and prev_rating and rating > prev_rating:
-                report += Messages.RATING_PROGRESS.format(prev=prev_rating, current=rating)
+                report += Messages.RATING_PROGRESS.format(
+                    prev=prev_rating, current=rating
+                )
             await _save_blunders(session, message.from_user.id, games)
     except Exception:
         logging.exception("DB persistence failed for user %s", username)

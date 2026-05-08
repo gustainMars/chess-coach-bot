@@ -1,5 +1,4 @@
 import chess
-import pytest
 
 from bot.services.move_validator import validate_move_input
 

@@ -1,5 +1,6 @@
 from dataclasses import dataclass
 
+
 @dataclass
 class DeviationResult:
     move_number: int

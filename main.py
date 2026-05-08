@@ -5,18 +5,19 @@ import os
 # load_dotenv must run before any local imports so module-level os.getenv() calls
 # in handlers, middleware, and services read the correct values from .env
 from dotenv import load_dotenv
+
 load_dotenv()
 
-from aiohttp import web
-from aiogram import Bot, Dispatcher
-from aiogram.fsm.storage.memory import MemoryStorage
-from bot.handlers.start import router as start_router
-from bot.handlers.analyze import router as analyze_router
-from bot.handlers.study import router as study_router
-from bot.handlers.attack_training import router as attack_training_router
-from bot.db.database import init_db
-from bot.web.routes import create_web_app
-from bot.middleware.qa_guard import QAGuardMiddleware
+from aiohttp import web  # noqa: E402
+from aiogram import Bot, Dispatcher  # noqa: E402
+from aiogram.fsm.storage.memory import MemoryStorage  # noqa: E402
+from bot.handlers.start import router as start_router  # noqa: E402
+from bot.handlers.analyze import router as analyze_router  # noqa: E402
+from bot.handlers.study import router as study_router  # noqa: E402
+from bot.handlers.attack_training import router as attack_training_router  # noqa: E402
+from bot.db.database import init_db  # noqa: E402
+from bot.web.routes import create_web_app  # noqa: E402
+from bot.middleware.qa_guard import QAGuardMiddleware  # noqa: E402
 
 TOKEN = os.getenv("TELEGRAM_TOKEN")
 
@@ -50,6 +51,7 @@ async def main():
         await dp.start_polling(bot)
     finally:
         await runner.cleanup()
+
 
 if __name__ == "__main__":
     asyncio.run(main())

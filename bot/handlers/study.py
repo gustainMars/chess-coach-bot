@@ -1,11 +1,11 @@
 import logging
 
 import chess
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
-from aiogram.types import BufferedInputFile, Message
+from aiogram.types import BufferedInputFile, CallbackQuery, Message
 
 from bot.db import repository
 from bot.db.database import SessionFactory
@@ -20,17 +20,14 @@ class StudyStates(StatesGroup):
     waiting_for_move = State()
 
 
-@router.message(Command("study"))
-async def cmd_study(message: Message, state: FSMContext):
-    await state.clear()
-
+async def _send_study_card(message: Message, user_id: int, state: FSMContext) -> None:
     try:
         async with SessionFactory() as session:
             blunder, reset_happened = await repository.get_next_unreviewed_blunder(
-                session, message.from_user.id
+                session, user_id
             )
     except Exception:
-        logging.exception("DB error fetching blunder for user %s", message.from_user.id)
+        logging.exception("DB error fetching blunder for user %s", user_id)
         await message.answer("Something went wrong. Please try again later.")
         return
 
@@ -60,6 +57,19 @@ async def cmd_study(message: Message, state: FSMContext):
     await state.update_data(blunder_id=blunder.id)
 
 
+@router.message(Command("study"))
+async def cmd_study(message: Message, state: FSMContext):
+    await state.clear()
+    await _send_study_card(message, message.from_user.id, state)
+
+
+@router.callback_query(F.data == "open_study")
+async def cb_open_study(callback: CallbackQuery, state: FSMContext):
+    await callback.answer()
+    await state.clear()
+    await _send_study_card(callback.message, callback.from_user.id, state)
+
+
 @router.message(StudyStates.waiting_for_move)
 async def handle_study_answer(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -70,7 +80,9 @@ async def handle_study_answer(message: Message, state: FSMContext):
             blunder = await repository.get_blunder_by_id(session, blunder_id)
             if blunder is None:
                 await state.clear()
-                await message.answer("Could not find the current question. Use /study to start again.")
+                await message.answer(
+                    "Could not find the current question. Use /study to start again."
+                )
                 return
 
             user_move = validate_move_input(message.text or "", blunder.fen)
@@ -91,7 +103,9 @@ async def handle_study_answer(message: Message, state: FSMContext):
             await repository.mark_blunder_reviewed(session, blunder.id)
 
     except Exception:
-        logging.exception("Error processing study answer for user %s", message.from_user.id)
+        logging.exception(
+            "Error processing study answer for user %s", message.from_user.id
+        )
         await state.clear()
         await message.answer("Something went wrong. Use /study to try again.")
         return

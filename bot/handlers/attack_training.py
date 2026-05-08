@@ -1,13 +1,9 @@
-import logging
 import os
-from urllib.parse import urlencode
 
-import chess
-from aiogram import Router
+from aiogram import F, Router
 from aiogram.filters import Command
-from aiogram.fsm.context import FSMContext
 from aiogram.types import (
-    BufferedInputFile,
+    CallbackQuery,
     InlineKeyboardButton,
     InlineKeyboardMarkup,
     Message,
@@ -24,38 +20,42 @@ from bot.services.board_renderer import fen_to_png
 
 router = Router()
 
-def _webapp_keyboard(fen: str) -> InlineKeyboardMarkup | None:
+
+def _attack_keyboard() -> InlineKeyboardMarkup | None:
     miniapp_url = os.getenv("MINIAPP_URL", "").rstrip("/")
     if not miniapp_url:
         return None
-    query: dict[str, str] = {"fen": fen}
     public_url = os.getenv("WEBAPP_PUBLIC_URL", "").rstrip("/")
-    if public_url:
-        query["api"] = public_url
-    url = f"{miniapp_url}?{urlencode(query)}"
-    return InlineKeyboardMarkup(inline_keyboard=[[
-        InlineKeyboardButton(text="⚔️ Open Training Board", web_app=WebAppInfo(url=url))
-    ]])
-
-
-@router.message(Command("attack-training"))
-async def cmd_attack_training(message: Message, state: FSMContext):
-    await state.clear()
-
-    try:
-        board = generate_attack_position()
-        png_bytes = fen_to_png(board.fen())
-    except Exception:
-        logging.exception("Failed to generate attack training position")
-        await message.answer("Could not generate a position. Please try again.")
-        return
-
-    fen = board.fen()
-    keyboard = _webapp_keyboard(fen)
-
-    await message.answer_photo(
-        photo=BufferedInputFile(png_bytes, filename="board.png"),
-        caption=Messages.ATTACK_QUESTION,
-        parse_mode="Markdown",
-        reply_markup=keyboard,
+    url = f"{miniapp_url}?api={public_url}" if public_url else miniapp_url
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [
+                InlineKeyboardButton(
+                    text="⚔️ Open Attack Training", web_app=WebAppInfo(url=url)
+                )
+            ]
+        ]
     )
+
+
+async def _send_attack_message(target: Message) -> None:
+    keyboard = _attack_keyboard()
+    if not keyboard:
+        await target.answer(
+            "⚠️ Attack training is not available in this environment."
+        )
+        return
+    await target.answer(
+        Messages.ATTACK_QUESTION, reply_markup=keyboard, parse_mode="Markdown"
+    )
+
+
+@router.message(Command("attack"))
+async def cmd_attack(message: Message):
+    await _send_attack_message(message)
+
+
+@router.callback_query(F.data == "open_attack")
+async def cb_open_attack(callback: CallbackQuery):
+    await callback.answer()
+    await _send_attack_message(callback.message)

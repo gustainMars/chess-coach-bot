@@ -3,18 +3,33 @@ import os
 import chess
 from aiohttp import web
 
-from bot.services.attack_generator import get_capturable_squares, validate_capture_selection
+from bot.services.attack_generator import (
+    generate_attack_position,
+    get_capturable_squares,
+    validate_capture_selection,
+)
 from bot.utils.telegram_auth import validate_init_data
 
 _CORS_HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Headers": "Content-Type, X-Telegram-Init-Data",
-    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
 }
 
 
 async def handle_preflight(request: web.Request) -> web.Response:
     return web.Response(headers=_CORS_HEADERS)
+
+
+async def handle_get_position(request: web.Request) -> web.Response:
+    bot_token = os.getenv("TELEGRAM_TOKEN", "")
+    init_data = request.headers.get("X-Telegram-Init-Data", "")
+    if not validate_init_data(init_data, bot_token):
+        return web.json_response(
+            {"error": "unauthorized"}, status=401, headers=_CORS_HEADERS
+        )
+    board = generate_attack_position()
+    return web.json_response({"fen": board.fen()}, headers=_CORS_HEADERS)
 
 
 async def handle_attack_check(request: web.Request) -> web.Response:
@@ -58,6 +73,8 @@ async def handle_attack_check(request: web.Request) -> web.Response:
 
 def create_web_app() -> web.Application:
     app = web.Application()
+    app.router.add_options("/miniapp/attack/position", handle_preflight)
     app.router.add_options("/miniapp/attack/check", handle_preflight)
+    app.router.add_get("/miniapp/attack/position", handle_get_position)
     app.router.add_post("/miniapp/attack/check", handle_attack_check)
     return app

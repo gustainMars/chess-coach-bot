@@ -2,6 +2,7 @@ import hashlib
 import hmac
 from urllib.parse import urlencode
 
+import chess
 import pytest
 import pytest_asyncio
 from aiohttp.test_utils import TestClient, TestServer
@@ -9,7 +10,9 @@ from aiohttp.test_utils import TestClient, TestServer
 from bot.web.routes import create_web_app
 
 _BOT_TOKEN = "123456:test-token"
-_SIMPLE_FEN = "r7/8/8/8/8/8/8/4K3 w - - 0 1"  # black rook a8, white king e1 — neither attacked
+_SIMPLE_FEN = (
+    "r7/8/8/8/8/8/8/4K3 w - - 0 1"  # black rook a8, white king e1 — neither attacked
+)
 
 
 def _make_init_data(**fields: str) -> str:
@@ -136,5 +139,42 @@ async def test_cors_headers_present_on_post(client, valid_init_data):
 @pytest.mark.asyncio
 async def test_options_preflight_returns_200(client):
     resp = await client.options("/miniapp/attack/check")
+    assert resp.status == 200
+    assert resp.headers.get("Access-Control-Allow-Origin") == "*"
+
+
+# ── GET /miniapp/attack/position ──────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_get_position_returns_200(client, valid_init_data):
+    resp = await client.get(
+        "/miniapp/attack/position",
+        headers={"X-Telegram-Init-Data": valid_init_data},
+    )
+    assert resp.status == 200
+
+
+@pytest.mark.asyncio
+async def test_get_position_returns_valid_fen(client, valid_init_data):
+    resp = await client.get(
+        "/miniapp/attack/position",
+        headers={"X-Telegram-Init-Data": valid_init_data},
+    )
+    data = await resp.json()
+    assert "fen" in data
+    board = chess.Board(data["fen"])
+    assert board.is_valid()
+
+
+@pytest.mark.asyncio
+async def test_get_position_unauthorized(client):
+    resp = await client.get("/miniapp/attack/position")
+    assert resp.status == 401
+
+
+@pytest.mark.asyncio
+async def test_options_position_returns_200(client):
+    resp = await client.options("/miniapp/attack/position")
     assert resp.status == 200
     assert resp.headers.get("Access-Control-Allow-Origin") == "*"

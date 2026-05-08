@@ -8,11 +8,16 @@ from bot.db.models import Blunder, User, UserOpeningStat
 from bot.domain.move_quality import MoveQuality
 
 
-async def upsert_user(session: AsyncSession, telegram_id: int, chesscom_username: str) -> None:
+async def upsert_user(
+    session: AsyncSession, telegram_id: int, chesscom_username: str
+) -> None:
     stmt = (
         insert(User)
         .values(telegram_id=telegram_id, chesscom_username=chesscom_username)
-        .on_conflict_do_update(index_elements=["telegram_id"], set_={"chesscom_username": chesscom_username})
+        .on_conflict_do_update(
+            index_elements=["telegram_id"],
+            set_={"chesscom_username": chesscom_username},
+        )
     )
     await session.execute(stmt)
     await session.commit()
@@ -50,7 +55,7 @@ async def upsert_opening_stat(
             losses=losses,
             draws=draws,
         )
-        # rating is intentionally excluded — only written on the first INSERT of the month
+        # rating excluded: only written on first INSERT of the month
         .on_conflict_do_update(
             index_elements=["chesscom_username", "eco", "color", "month", "year"],
             set_={"total": total, "wins": wins, "losses": losses, "draws": draws},
@@ -118,14 +123,18 @@ async def get_blunder_by_id(session: AsyncSession, blunder_id: int) -> Blunder |
 
 async def mark_blunder_reviewed(session: AsyncSession, blunder_id: int) -> None:
     await session.execute(
-        update(Blunder).where(Blunder.id == blunder_id).values(reviewed_at=datetime.utcnow())
+        update(Blunder)
+        .where(Blunder.id == blunder_id)
+        .values(reviewed_at=datetime.utcnow())
     )
     await session.commit()
 
 
 async def reset_all_reviews(session: AsyncSession, telegram_id: int) -> None:
     await session.execute(
-        update(Blunder).where(Blunder.telegram_id == telegram_id).values(reviewed_at=None)
+        update(Blunder)
+        .where(Blunder.telegram_id == telegram_id)
+        .values(reviewed_at=None)
     )
     await session.commit()
 
