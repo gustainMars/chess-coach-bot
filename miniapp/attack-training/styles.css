@@ -1,0 +1,114 @@
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: var(--tg-theme-bg-color, #1c1c1e);
+  color: var(--tg-theme-text-color, #ffffff);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 12px 12px 32px;
+  gap: 10px;
+}
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+header {
+  text-align: center;
+}
+
+header h1 {
+  font-size: 17px;
+  font-weight: 700;
+}
+
+header p {
+  font-size: 13px;
+  opacity: 0.65;
+  margin-top: 3px;
+}
+
+/* ── Board ────────────────────────────────────────────────────────────────── */
+#board-wrap {
+  width: min(calc(100vw - 24px), 440px);
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+#board {
+  width: 100%;
+  aspect-ratio: 1;
+  display: block;
+  border-radius: 4px;
+  touch-action: manipulation;
+}
+
+#file-labels {
+  display: flex;
+  justify-content: space-around;
+  padding: 3px 0 0;
+  font-size: 11px;
+  opacity: 0.45;
+}
+
+/* ── Status banner ────────────────────────────────────────────────────────── */
+#status {
+  width: min(calc(100vw - 24px), 440px);
+  min-height: 44px;
+  padding: 10px 14px;
+  border-radius: 10px;
+  background: var(--tg-theme-secondary-bg-color, #2c2c2e);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background 0.25s, color 0.25s;
+}
+
+#status.correct {
+  background: #1a6e42;
+  color: #fff;
+}
+
+#status.wrong {
+  background: #6e1a1a;
+  color: #fff;
+}
+
+/* ── Selected info ────────────────────────────────────────────────────────── */
+#selected-info {
+  font-size: 12px;
+  opacity: 0.55;
+  min-height: 16px;
+  text-align: center;
+}
+
+/* ── Check button ─────────────────────────────────────────────────────────── */
+#check-btn {
+  width: min(calc(100vw - 24px), 440px);
+  height: 52px;
+  border: none;
+  border-radius: 12px;
+  background: var(--tg-theme-button-color, #5288c1);
+  color: var(--tg-theme-button-text-color, #ffffff);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity 0.15s;
+}
+
+#check-btn:active:not(:disabled) {
+  opacity: 0.75;
+}
+
+#check-btn:disabled {
+  opacity: 0.35;
+  cursor: default;
+}

@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Attack Training</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <header>
+    <h1 id="ui-title"></h1>
+    <p id="ui-subtitle"></p>
+  </header>
+
+  <div id="board-wrap">
+    <svg id="board" viewBox="0 0 8 8" xmlns="http://www.w3.org/2000/svg"></svg>
+    <div id="file-labels"></div>
+  </div>
+
+  <div id="status"></div>
+  <div id="selected-info"></div>
+  <button id="check-btn" disabled></button>
+
+  <script type="module" src="main.js"></script>
+
+</body>
+</html>
