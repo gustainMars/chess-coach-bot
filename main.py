@@ -29,10 +29,14 @@ logging.basicConfig(level=logging.INFO)
 
 async def on_startup(bot: Bot):
     await init_db()
+    if not WEBHOOK_URL:
+        logging.error("WEBHOOK_URL env var is not set — webhook will not be registered")
+        return
     await bot.set_webhook(
         url=f"{WEBHOOK_URL}{WEBHOOK_PATH}",
         secret_token=WEBHOOK_SECRET,
     )
+    logging.info("Webhook set to %s%s", WEBHOOK_URL, WEBHOOK_PATH)
 
 
 async def on_shutdown(bot: Bot):

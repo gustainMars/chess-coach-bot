@@ -71,8 +71,13 @@ async def handle_attack_check(request: web.Request) -> web.Response:
     )
 
 
+async def handle_health(request: web.Request) -> web.Response:
+    return web.Response(text="ok")
+
+
 def create_web_app() -> web.Application:
     app = web.Application()
+    app.router.add_get("/", handle_health)
     app.router.add_options("/miniapp/attack/position", handle_preflight)
     app.router.add_options("/miniapp/attack/check", handle_preflight)
     app.router.add_get("/miniapp/attack/position", handle_get_position)
