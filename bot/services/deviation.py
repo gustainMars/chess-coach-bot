@@ -1,4 +1,5 @@
 import logging
+import re
 
 import chess
 import csv
@@ -12,11 +13,19 @@ from bot.domain.move_quality import MoveQuality
 ECO_PATH = Path(__file__).parent.parent.parent / "data" / "eco.tsv"
 
 
-def parse_moves(pgn_moves: str) -> list[str]:
+def _strip_pgn_headers(pgn: str) -> str:
+    """Remove PGN header tags and inline comments, leaving only move tokens."""
+    pgn = re.sub(r'\[[^\]]*\]', '', pgn)   # [Tag "Value"]
+    pgn = re.sub(r'\{[^}]*\}', '', pgn)    # { comments and %clk annotations }
+    return pgn
+
+
+def parse_moves(pgn: str) -> list[str]:
+    pgn = _strip_pgn_headers(pgn)
     board = chess.Board()
     moves = []
-    for token in pgn_moves.split():
-        if token[0].isdigit():
+    for token in pgn.split():
+        if token[0].isdigit() or token[0] == '$':
             continue
         if token == "*" or token.endswith("-"):
             continue
