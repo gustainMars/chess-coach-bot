@@ -33,6 +33,42 @@ def test_parse_moves():
     assert moves == []
 
 
+def test_parse_moves_with_full_chesscom_pgn():
+    """parse_moves must handle the full PGN format returned by chess.com API.
+
+    chess.com returns a complete PGN string with header tags ([Event], [Site],
+    [ECO], etc.) and inline clock annotations ({ [%clk 0:09:58.2] }).
+    Previously, parse_moves received this full string and immediately stopped
+    on the first token '[Event', producing an empty list for every game.
+    """
+    from bot.services.deviation import parse_moves
+
+    full_pgn = (
+        '[Event "Live Chess"]\n'
+        '[Site "Chess.com"]\n'
+        '[Date "2026.05.11"]\n'
+        '[White "player1"]\n'
+        '[Black "player2"]\n'
+        '[Result "1-0"]\n'
+        '[ECO "C60"]\n'
+        '[ECOUrl "https://www.chess.com/openings/Ruy-Lopez-Opening"]\n'
+        '\n'
+        '1. e4 { [%clk 0:09:58.2] } e5 { [%clk 0:09:57.4] } '
+        '2. Nf3 { [%clk 0:09:55.1] } Nc6 { [%clk 0:09:54.8] } '
+        '3. Bb5 { [%clk 0:09:52.0] } a6 { [%clk 0:09:51.3] } 1-0\n'
+    )
+    moves = parse_moves(full_pgn)
+    assert moves == ["e4", "e5", "Nf3", "Nc6", "Bb5", "a6"]
+
+
+def test_parse_moves_strips_nag_annotations():
+    """Numeric Annotation Glyphs ($1, $2 …) must be silently skipped."""
+    from bot.services.deviation import parse_moves
+
+    pgn = "1. e4 $1 e5 $2 2. Nf3 Nc6"
+    assert parse_moves(pgn) == ["e4", "e5", "Nf3", "Nc6"]
+
+
 def test_get_fen_from_moves():
     from bot.services.deviation import get_fen_from_moves
 

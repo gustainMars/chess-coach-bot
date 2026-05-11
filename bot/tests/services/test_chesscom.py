@@ -25,11 +25,30 @@ def _old_ts() -> int:
     return int((datetime.now(timezone.utc) - timedelta(days=60)).timestamp())
 
 
+# Realistic PGN as returned by chess.com API — includes header tags and %clk annotations.
+# Tests that process game["pgn"] MUST use this format; simplified "1. e4 e5" strings
+# hide bugs where parsers choke on the headers (see parse_moves regression May-2026).
+_REALISTIC_PGN = (
+    '[Event "Live Chess"]\n'
+    '[Site "Chess.com"]\n'
+    '[Date "2026.05.11"]\n'
+    '[White "testuser"]\n'
+    '[Black "opponent"]\n'
+    '[Result "1-0"]\n'
+    '[ECO "C60"]\n'
+    '[ECOUrl "https://www.chess.com/openings/Ruy-Lopez-Opening"]\n'
+    '\n'
+    '1. e4 { [%clk 0:09:58.2] } e5 { [%clk 0:09:57.4] } '
+    '2. Nf3 { [%clk 0:09:55.1] } Nc6 { [%clk 0:09:54.8] } '
+    '3. Bb5 { [%clk 0:09:52.0] } a6 { [%clk 0:09:51.3] } 1-0\n'
+)
+
+
 @pytest.mark.asyncio
 async def test_get_recent_games_returns_games():
     from bot.services.chesscom import get_recent_games
 
-    game = {"pgn": "1. e4 e5", "end_time": _recent_ts(), "white": {}, "black": {}}
+    game = {"pgn": _REALISTIC_PGN, "end_time": _recent_ts(), "white": {}, "black": {}}
     archives_resp = make_response(200, {"archives": [_current_month_url()]})
     games_resp = make_response(200, {"games": [game]})
 
@@ -42,7 +61,7 @@ async def test_get_recent_games_returns_games():
         result = await get_recent_games("testuser")
 
     assert len(result) == 1
-    assert result[0]["pgn"] == "1. e4 e5"
+    assert "[Event" in result[0]["pgn"]
 
 
 @pytest.mark.asyncio
