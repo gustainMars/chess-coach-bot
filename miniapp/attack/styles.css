@@ -1,0 +1,19 @@
+/* Attack-training-specific styles (shared base in ../shared/base.css) */
+
+header {
+  text-align: center;
+}
+
+header p {
+  font-size: 13px;
+  opacity: 0.65;
+  margin-top: 3px;
+}
+
+/* ── Selected info ────────────────────────────────────────────────────────── */
+#selected-info {
+  font-size: 12px;
+  opacity: 0.55;
+  min-height: 16px;
+  text-align: center;
+}

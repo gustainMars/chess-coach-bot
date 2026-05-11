@@ -50,6 +50,12 @@ class Messages:
         "🎉 You've reviewed all your blunders! Starting the deck over.\n\n"
     )
 
+    STUDY_OPEN = (
+        "📖 *Blunder Review*\n\n"
+        "Practice the moves you missed in your recent games.\n"
+        "Select an opening to filter, or study all blunders at once."
+    )
+
     ATTACK_QUESTION = (
         "⚔️ *Attack Training*\n\n"
         "Tap *all pieces that can be captured* in this position "

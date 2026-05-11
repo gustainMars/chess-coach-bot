@@ -10,7 +10,7 @@ Telegram bot that analyzes your Chess.com games, identifies your most-used openi
 |---------|-------------|
 | `/analyze <username> [months]` | Fetches up to 6 months of games from Chess.com, calculates winrate per opening (white/black), detects deviations from the main line, and saves blunders to the local database. Default: 1 month. |
 | `/study` | Flashcard loop: shows a board position from a saved blunder and asks the user to enter the correct move. Cycles through all unreviewed blunders, then resets. |
-| `/attack-training` | Generates a random middlegame position and opens a Telegram Mini App where the user taps all pieces that can be captured. |
+| `/attack` | Generates a random middlegame position and opens a Telegram Mini App where the user taps all pieces that can be captured. |
 | `/help` | Lists available commands. |
 
 ---
@@ -27,7 +27,7 @@ chess-coach-bot/
 │   ├── handlers/               # Telegram command handlers (aiogram routers)
 │   │   ├── analyze.py          # /analyze
 │   │   ├── study.py            # /study (flashcards)
-│   │   ├── attack_training.py  # /attack-training
+│   │   ├── attack_training.py  # /attack
 │   │   └── start.py            # /start, /help
 │   │
 │   ├── services/               # Business logic (no Telegram dependency)
@@ -36,7 +36,7 @@ chess-coach-bot/
 │   │   ├── deviation.py        # Detect deviations from opening main line
 │   │   ├── move_validator.py   # Validate user move input
 │   │   ├── stats.py            # Aggregate opening statistics
-│   │   ├── attack_generator.py # Generate attack-training positions
+│   │   ├── attack_generator.py # Generate attack positions
 │   │   └── board_renderer.py   # FEN → PNG via python-chess + cairosvg
 │   │
 │   ├── db/
@@ -60,7 +60,7 @@ chess-coach-bot/
 │       └── routes.py           # aiohttp HTTP server — POST /miniapp/attack/check
 │
 ├── miniapp/                    # Telegram Mini App (static frontend)
-│   ├── attack-training/
+│   ├── attack/
 │   │   ├── index.html          # HTML structure only
 │   │   ├── styles.css
 │   │   ├── messages.js         # UI strings in en/pt
@@ -114,8 +114,8 @@ DATABASE_URL=sqlite+aiosqlite:///chess_bot.db
 # Stockfish binary path (check with: which stockfish)
 STOCKFISH_PATH=/usr/bin/stockfish
 
-# Mini App (only needed for /attack-training with the web board)
-MINIAPP_URL=https://your-github-pages-url/attack-training
+# Mini App (only needed for /attack with the web board)
+MINIAPP_URL=https://your-github-pages-url/attack
 WEBAPP_PUBLIC_URL=http://localhost:8080   # public URL of the HTTP server
 WEBAPP_PORT=8080                          # local port for the Mini App API
 
@@ -153,7 +153,7 @@ All 96 tests must pass. Never use `--ignore` — if an import fails due to a mis
 | `TELEGRAM_TOKEN` | Yes | — | Bot token from @BotFather |
 | `DATABASE_URL` | No | `sqlite+aiosqlite:///chess_bot.db` | SQLAlchemy async DB URL |
 | `STOCKFISH_PATH` | No | `stockfish` | Path to Stockfish binary |
-| `MINIAPP_URL` | No | — | Hosted URL of `miniapp/attack-training/` |
+| `MINIAPP_URL` | No | — | Hosted URL of `miniapp/attack/` |
 | `WEBAPP_PUBLIC_URL` | No | — | Public URL of the bot's HTTP server (passed to Mini App as `?api=`) |
 | `WEBAPP_PORT` | No | `8080` | Port for the aiohttp HTTP server |
 | `BOT_ENV` | No | — | Set to `qa` to restrict access to `ALLOWED_USER_ID` |
@@ -189,9 +189,9 @@ Required GitHub secrets: `OCI_HOST`, `OCI_USER`, `OCI_SSH_KEY`, `TELEGRAM_TOKEN`
 
 ## Mini App setup
 
-The `/attack-training` board runs as a Telegram Mini App hosted on GitHub Pages or Vercel.
+The `/attack` board runs as a Telegram Mini App hosted on GitHub Pages or Vercel.
 
-1. Deploy `miniapp/` to a static host (e.g. GitHub Pages at `https://user.github.io/chess-coach-bot/miniapp/attack-training/`)
+1. Deploy `miniapp/` to a static host (e.g. GitHub Pages at `https://user.github.io/chess-coach-bot/miniapp/attack/`)
 2. Set `MINIAPP_URL` to that URL in the bot's environment
 3. Set `WEBAPP_PUBLIC_URL` to the publicly reachable URL of the bot's HTTP server (e.g. `https://your-oracle-vm-ip:8080`)
 4. The bot passes both as query params to the Mini App: `?fen=...&api=...`
