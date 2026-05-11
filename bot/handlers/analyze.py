@@ -4,10 +4,9 @@ from aiogram import Router
 from aiogram.types import Message
 from aiogram.filters import Command
 from bot.domain.messages import Messages
-from bot.domain.move_quality import MoveQuality
 from bot.domain.opening import Color, OpeningStat
 from bot.services.chesscom import get_player_rating, get_recent_games, get_user_info
-from bot.services.deviation import evaluate_deviation, find_deviation
+from bot.services.deviation import find_blunders_in_game
 from bot.services.opening_extractor import extract_opening_from
 from bot.services.stats import aggregate_openings, top_openings
 from bot.db.database import SessionFactory
@@ -61,12 +60,8 @@ async def _save_blunders(session, telegram_id, games):
         if not opening:
             continue
 
-        deviation = find_deviation(pgn, opening["opening_eco"])
-        if deviation is None:
-            continue
-
-        quality = await evaluate_deviation(deviation)
-        if quality in (MoveQuality.BLUNDER, MoveQuality.MISTAKE):
+        blunder_results = await find_blunders_in_game(pgn, session)
+        for deviation, quality in blunder_results:
             await repository.save_blunder(
                 session,
                 telegram_id=telegram_id,

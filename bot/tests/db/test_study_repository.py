@@ -5,6 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 from bot.db.models import Base
 from bot.db.repository import (
     get_blunder_by_id,
+    get_blunder_openings,
     get_next_unreviewed_blunder,
     mark_blunder_reviewed,
     reset_all_reviews,
@@ -149,3 +150,82 @@ async def test_get_blunder_by_id_returns_correct(session: AsyncSession):
 async def test_get_blunder_by_id_returns_none_for_missing(session: AsyncSession):
     fetched = await get_blunder_by_id(session, blunder_id=99999)
     assert fetched is None
+
+
+# ── ECO filter ────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_eco_filter_returns_only_matching_eco(session: AsyncSession):
+    await _make_user(session)
+    ruy = await _make_blunder(session, eco="C60", name="Ruy Lopez")
+    await _make_blunder(session, eco="D00", name="Queens Pawn")
+
+    blunder, reset = await get_next_unreviewed_blunder(session, telegram_id=1, eco="C60")
+    assert blunder is not None
+    assert blunder.id == ruy.id
+    assert reset is False
+
+
+@pytest.mark.asyncio
+async def test_eco_filter_returns_none_when_no_matching(session: AsyncSession):
+    await _make_user(session)
+    await _make_blunder(session, eco="C60", name="Ruy Lopez")
+
+    blunder, reset = await get_next_unreviewed_blunder(session, telegram_id=1, eco="D00")
+    assert blunder is None
+    assert reset is False
+
+
+@pytest.mark.asyncio
+async def test_eco_filter_reset_does_not_affect_other_ecos(session: AsyncSession):
+    await _make_user(session)
+    ruy = await _make_blunder(session, eco="C60", name="Ruy Lopez")
+    qp = await _make_blunder(session, eco="D00", name="Queens Pawn")
+
+    await mark_blunder_reviewed(session, ruy.id)
+
+    # Deck exhausted for C60 → should reset C60 only
+    blunder, reset = await get_next_unreviewed_blunder(session, telegram_id=1, eco="C60")
+    assert reset is True
+    assert blunder is not None
+    assert blunder.id == ruy.id
+
+    # D00 should still be unreviewed (unaffected by C60 reset)
+    qp_fetched = await get_blunder_by_id(session, qp.id)
+    assert qp_fetched.reviewed_at is None
+
+
+# ── get_blunder_openings ──────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_get_blunder_openings_empty(session: AsyncSession):
+    await _make_user(session)
+    result = await get_blunder_openings(session, telegram_id=1)
+    assert result == []
+
+
+@pytest.mark.asyncio
+async def test_get_blunder_openings_groups_by_eco(session: AsyncSession):
+    await _make_user(session)
+    await _make_blunder(session, eco="C60", name="Ruy Lopez")
+    await _make_blunder(session, eco="C60", name="Ruy Lopez")
+    await _make_blunder(session, eco="D00", name="Queens Pawn")
+
+    result = await get_blunder_openings(session, telegram_id=1)
+    assert len(result) == 2
+    assert result[0]["eco"] == "C60"
+    assert result[0]["blunder_count"] == 2
+    assert result[1]["eco"] == "D00"
+    assert result[1]["blunder_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_get_blunder_openings_isolated_per_user(session: AsyncSession):
+    await _make_user(session, telegram_id=1, username="alice")
+    await _make_user(session, telegram_id=2, username="bob")
+    await _make_blunder(session, telegram_id=1, eco="C60", name="Ruy Lopez")
+    await _make_blunder(session, telegram_id=2, eco="D00", name="Queens Pawn")
+
+    result = await get_blunder_openings(session, telegram_id=1)
+    assert len(result) == 1
+    assert result[0]["eco"] == "C60"

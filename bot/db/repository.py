@@ -1,11 +1,14 @@
-from datetime import datetime
+import json
+from datetime import datetime, timedelta, timezone
 
 from sqlalchemy import select, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.dialects.sqlite import insert
 
-from bot.db.models import Blunder, User, UserOpeningStat
+from bot.db.models import Blunder, OpeningExplorerCache, User, UserOpeningStat
 from bot.domain.move_quality import MoveQuality
+
+_EXPLORER_CACHE_TTL = timedelta(days=30)
 
 
 async def upsert_user(
@@ -139,12 +142,60 @@ async def reset_all_reviews(session: AsyncSession, telegram_id: int) -> None:
     await session.commit()
 
 
-async def get_next_unreviewed_blunder(
+async def get_cached_explorer_moves(
+    session: AsyncSession, fen: str
+) -> list[str] | None:
+    result = await session.execute(
+        select(OpeningExplorerCache).where(OpeningExplorerCache.fen == fen)
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        return None
+    if datetime.now(timezone.utc) - row.cached_at.replace(tzinfo=timezone.utc) > _EXPLORER_CACHE_TTL:
+        return None
+    return json.loads(row.top_moves)
+
+
+async def save_cached_explorer_moves(
+    session: AsyncSession, fen: str, moves: list[str]
+) -> None:
+    stmt = (
+        insert(OpeningExplorerCache)
+        .values(fen=fen, top_moves=json.dumps(moves), cached_at=datetime.now(timezone.utc))
+        .on_conflict_do_update(
+            index_elements=["fen"],
+            set_={"top_moves": json.dumps(moves), "cached_at": datetime.now(timezone.utc)},
+        )
+    )
+    await session.execute(stmt)
+    await session.commit()
+
+
+async def get_blunder_openings(
     session: AsyncSession, telegram_id: int
+) -> list[dict]:
+    result = await session.execute(
+        select(Blunder.opening_eco, Blunder.opening_name, func.count().label("blunder_count"))
+        .where(Blunder.telegram_id == telegram_id)
+        .group_by(Blunder.opening_eco, Blunder.opening_name)
+        .order_by(func.count().desc())
+    )
+    return [
+        {"eco": row.opening_eco, "name": row.opening_name, "blunder_count": row.blunder_count}
+        for row in result
+    ]
+
+
+async def get_next_unreviewed_blunder(
+    session: AsyncSession, telegram_id: int, eco: str | None = None
 ) -> tuple[Blunder | None, bool]:
+    base_filter = [Blunder.telegram_id == telegram_id]
+    if eco:
+        base_filter.append(Blunder.opening_eco == eco)
+
     result = await session.execute(
         select(Blunder)
-        .where(Blunder.telegram_id == telegram_id, Blunder.reviewed_at.is_(None))
+        .where(*base_filter, Blunder.reviewed_at.is_(None))
         .order_by(Blunder.created_at.asc())
         .limit(1)
     )
@@ -153,16 +204,21 @@ async def get_next_unreviewed_blunder(
         return blunder, False
 
     count_result = await session.execute(
-        select(func.count()).where(Blunder.telegram_id == telegram_id)
+        select(func.count()).where(*base_filter)
     )
     count = count_result.scalar_one()
     if count == 0:
         return None, False
 
-    await reset_all_reviews(session, telegram_id)
+    # Deck exhausted — reset reviews and start again
+    await session.execute(
+        update(Blunder).where(*base_filter).values(reviewed_at=None)
+    )
+    await session.commit()
+
     result = await session.execute(
         select(Blunder)
-        .where(Blunder.telegram_id == telegram_id)
+        .where(*base_filter)
         .order_by(Blunder.created_at.asc())
         .limit(1)
     )

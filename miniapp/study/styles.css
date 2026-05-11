@@ -1,0 +1,79 @@
+/* Study-specific styles (shared base in ../shared/base.css) */
+
+/* ── Header ───────────────────────────────────────────────────────────────── */
+header {
+  width: min(calc(100vw - 24px), 440px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+header h1 {
+  text-align: center;
+}
+
+/* ── Opening filter ───────────────────────────────────────────────────────── */
+#eco-filter {
+  width: 100%;
+  height: 40px;
+  padding: 0 36px 0 10px;
+  border: none;
+  border-radius: 10px;
+  background-color: var(--tg-theme-secondary-bg-color, #2c2c2e);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath d='M1 1l5 5 5-5' stroke='%23999' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  color: var(--tg-theme-text-color, #ffffff);
+  font-size: 14px;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+}
+
+#eco-filter:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+/* ── Opening info bar ─────────────────────────────────────────────────────── */
+#opening-info {
+  width: min(calc(100vw - 24px), 440px);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+}
+
+#opening-info[hidden] {
+  display: none;
+}
+
+#opening-name {
+  flex: 1;
+  font-weight: 500;
+  opacity: 0.85;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Quality chip ─────────────────────────────────────────────────────────── */
+#quality-chip {
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: capitalize;
+  background: #6e1a1a;
+  color: #fff;
+}
+
+#quality-chip.mistake {
+  background: #7a5200;
+}
+
+/* ── Next button hidden state ─────────────────────────────────────────────── */
+#next-btn[hidden] {
+  display: none;
+}

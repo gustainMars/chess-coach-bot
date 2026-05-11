@@ -72,3 +72,11 @@ class UserOpeningStat(Base):
     draws: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
 
     user: Mapped["User"] = relationship("User", back_populates="opening_stats")
+
+
+class OpeningExplorerCache(Base):
+    __tablename__ = "opening_explorer_cache"
+
+    fen: Mapped[str] = mapped_column(String, primary_key=True)
+    top_moves: Mapped[str] = mapped_column(String, nullable=False)  # JSON list of UCI strings
+    cached_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

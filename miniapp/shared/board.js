@@ -108,7 +108,79 @@ export function renderHighlights(squares, selected, missed, extra) {
   }
 }
 
+/**
+ * Draw a colored arrow between two squares on the board SVG.
+ * Removes any previously drawn arrow first.
+ *
+ * @param {SVGSVGElement} svgEl  - the board `<svg>` element
+ * @param {string} fromSq        - source square name (e.g. 'e2')
+ * @param {string} toSq          - destination square name (e.g. 'e4')
+ * @param {string} color         - CSS color string
+ * @param {boolean} flipped      - true when board is flipped (black at bottom)
+ */
+export function drawArrow(svgEl, fromSq, toSq, color, flipped) {
+  clearArrows(svgEl);
+
+  const from = _sqCenter(fromSq, flipped);
+  const to   = _sqCenter(toSq,   flipped);
+
+  const dx = to.x - from.x;
+  const dy = to.y - from.y;
+  const len = Math.sqrt(dx * dx + dy * dy);
+  if (len < 0.01) return;
+
+  const ux = dx / len;
+  const uy = dy / len;
+  const px = -uy;
+  const py =  ux;
+
+  const headLen   = 0.36;
+  const headWidth = 0.20;
+  const lineWidth = 0.11;
+
+  const lineEnd = { x: to.x - ux * headLen, y: to.y - uy * headLen };
+
+  const g = document.createElementNS(SVG_NS, 'g');
+  g.setAttribute('data-arrow', '');
+  g.setAttribute('pointer-events', 'none');
+
+  const line = document.createElementNS(SVG_NS, 'line');
+  line.setAttribute('x1', from.x);
+  line.setAttribute('y1', from.y);
+  line.setAttribute('x2', lineEnd.x);
+  line.setAttribute('y2', lineEnd.y);
+  line.setAttribute('stroke', color);
+  line.setAttribute('stroke-width', lineWidth);
+  line.setAttribute('stroke-opacity', '0.85');
+  line.setAttribute('stroke-linecap', 'round');
+  g.appendChild(line);
+
+  const p1 = { x: lineEnd.x + px * headWidth, y: lineEnd.y + py * headWidth };
+  const p2 = { x: lineEnd.x - px * headWidth, y: lineEnd.y - py * headWidth };
+  const polygon = document.createElementNS(SVG_NS, 'polygon');
+  polygon.setAttribute('points',
+    `${p1.x},${p1.y} ${p2.x},${p2.y} ${to.x},${to.y}`);
+  polygon.setAttribute('fill', color);
+  polygon.setAttribute('fill-opacity', '0.85');
+  g.appendChild(polygon);
+
+  svgEl.appendChild(g);
+}
+
+/** Remove any arrow drawn by drawArrow. */
+export function clearArrows(svgEl) {
+  svgEl.querySelectorAll('[data-arrow]').forEach(el => el.remove());
+}
+
 // ── SVG primitive helpers (internal) ──────────────────────────────────────────
+
+function _sqCenter(sq, flipped) {
+  const fileIdx = sq.charCodeAt(0) - 97;
+  const rankNum = parseInt(sq[1], 10);
+  const col = flipped ? 7 - fileIdx : fileIdx;
+  const row = flipped ? rankNum - 1 : 8 - rankNum;
+  return { x: col + 0.5, y: row + 0.5 };
+}
 
 function svgEl_rect(col, row, fill) {
   return svgEl('rect', { x: col, y: row, width: 1, height: 1, fill });

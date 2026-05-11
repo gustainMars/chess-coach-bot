@@ -1,3 +1,5 @@
+/* Shared base styles for all Mini App screens */
+
 *, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
@@ -17,19 +19,9 @@ body {
 }
 
 /* ── Header ───────────────────────────────────────────────────────────────── */
-header {
-  text-align: center;
-}
-
 header h1 {
   font-size: 17px;
   font-weight: 700;
-}
-
-header p {
-  font-size: 13px;
-  opacity: 0.65;
-  margin-top: 3px;
 }
 
 /* ── Board ────────────────────────────────────────────────────────────────── */
@@ -82,16 +74,8 @@ header p {
   color: #fff;
 }
 
-/* ── Selected info ────────────────────────────────────────────────────────── */
-#selected-info {
-  font-size: 12px;
-  opacity: 0.55;
-  min-height: 16px;
-  text-align: center;
-}
-
-/* ── Check button ─────────────────────────────────────────────────────────── */
-#check-btn {
+/* ── Primary button ───────────────────────────────────────────────────────── */
+.screen-btn {
   width: min(calc(100vw - 24px), 440px);
   height: 52px;
   border: none;
@@ -104,11 +88,11 @@ header p {
   transition: opacity 0.15s;
 }
 
-#check-btn:active:not(:disabled) {
+.screen-btn:active:not(:disabled) {
   opacity: 0.75;
 }
 
-#check-btn:disabled {
+.screen-btn:disabled {
   opacity: 0.35;
   cursor: default;
 }
