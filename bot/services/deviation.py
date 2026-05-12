@@ -55,8 +55,11 @@ def get_fen_from_moves(moves: list[str]) -> str:
     return board.fen()
 
 
-def find_deviation(pgn_moves: str, opening_eco: str) -> DeviationResult | None:
-    moves = parse_moves(pgn_moves)
+MAX_OPENING_HALF_MOVES = 12
+
+
+def find_deviation(pgn_moves: str, opening_eco: str, max_half_moves: int = MAX_OPENING_HALF_MOVES) -> DeviationResult | None:
+    moves = parse_moves(pgn_moves)[:max_half_moves]
 
     if not moves:
         return None
@@ -78,63 +81,56 @@ def find_deviation(pgn_moves: str, opening_eco: str) -> DeviationResult | None:
 
 
 async def find_blunders_in_game(
-    pgn_moves: str,
+    pgn: str,
     session,
-    max_half_moves: int = 20,
+    max_half_moves: int = MAX_OPENING_HALF_MOVES,
 ) -> list[tuple[DeviationResult, MoveQuality]]:
-    """
-    Walk through the first max_half_moves of a game and detect blunders using
-    the Lichess Opening Explorer (with SQLite cache) + Stockfish evaluation.
-
-    A move is a blunder when:
-    1. It is absent from the Explorer's top-N moves for that position, AND
-    2. Stockfish eval drops by more than the blunder/mistake threshold.
-    """
-    from bot.services.lichess_explorer import get_top_moves
-    from bot.db import repository
-
-    moves = parse_moves(pgn_moves)
+    moves = parse_moves(pgn)
     if not moves:
         return []
 
     board = chess.Board()
-    results: list[tuple[DeviationResult, MoveQuality]] = []
-
-    for i, san in enumerate(moves[:max_half_moves]):
-        fen_before = board.fen()
-
-        cached = await repository.get_cached_explorer_moves(session, fen_before)
-        if cached is None:
-            top_ucis = await get_top_moves(fen_before)
-            await repository.save_cached_explorer_moves(session, fen_before, top_ucis)
-        else:
-            top_ucis = cached
-
-        move = board.parse_san(san)
-        board.push(move)
-
-        if not top_ucis or move.uci() in top_ucis:
-            continue  # theory move or no explorer data
-
-        top_san = _uci_to_san(chess.Board(fen_before), top_ucis[0])
-        deviation = DeviationResult(
-            move_number=i + 1,
-            user_move=san,
-            expected_move=top_san,
-            fen=fen_before,
-        )
-        quality = await evaluate_deviation(deviation)
-        if quality in (MoveQuality.BLUNDER, MoveQuality.MISTAKE):
-            results.append((deviation, quality))
-
-    return results
-
-
-def _uci_to_san(board: chess.Board, uci: str) -> str:
+    transport, engine = await chess.engine.popen_uci(
+        os.getenv("STOCKFISH_PATH", "stockfish")
+    )
     try:
-        return board.san(chess.Move.from_uci(uci))
-    except Exception:
-        return uci
+        for i, san in enumerate(moves[:max_half_moves]):
+            fen_before = board.fen()
+            pov = board.turn
+
+            eval_before = await engine.analyse(board, chess.engine.Limit(depth=12))
+
+            move = board.parse_san(san)
+            board.push(move)
+
+            eval_after = await engine.analyse(board, chess.engine.Limit(depth=12))
+
+            score_before = eval_before["score"].pov(pov).score(mate_score=10000)
+            score_after = eval_after["score"].pov(pov).score(mate_score=10000)
+
+            if score_before is None or score_after is None:
+                continue
+
+            quality = _classify_drop(score_before - score_after)
+            if quality not in (MoveQuality.BLUNDER, MoveQuality.MISTAKE):
+                continue
+
+            best = await engine.play(chess.Board(fen_before), chess.engine.Limit(depth=12))
+            try:
+                expected_san = chess.Board(fen_before).san(best.move)
+            except Exception:
+                expected_san = best.move.uci()
+
+            return [(DeviationResult(
+                move_number=i + 1,
+                user_move=san,
+                expected_move=expected_san,
+                fen=fen_before,
+            ), quality)]
+    finally:
+        await engine.quit()
+
+    return []
 
 
 def _classify_drop(drop: int) -> MoveQuality | None:

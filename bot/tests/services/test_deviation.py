@@ -97,6 +97,73 @@ def test_find_deviation():
 
 
 @pytest.mark.asyncio
+async def test_find_blunders_in_game_detects_blunder():
+    from bot.services.deviation import find_blunders_in_game
+    from bot.domain.deviation_result import DeviationResult
+    import chess.engine
+
+    pgn = "1. e4 e5 2. Qh5 Nc6"
+
+    mock_transport = MagicMock()
+    mock_engine = AsyncMock()
+    mock_engine.analyse = AsyncMock(side_effect=[
+        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)},
+        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.BLACK)},
+        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.BLACK)},
+        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)},
+        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)},
+        {"score": chess.engine.PovScore(chess.engine.Cp(-130), chess.WHITE)},
+    ])
+    mock_move = MagicMock()
+    mock_move.move = chess.Move.from_uci("g1f3")
+    mock_engine.play = AsyncMock(return_value=mock_move)
+    mock_engine.quit = AsyncMock()
+
+    with patch(
+        "bot.services.deviation.chess.engine.popen_uci",
+        AsyncMock(return_value=(mock_transport, mock_engine)),
+    ):
+        results = await find_blunders_in_game(pgn, session=None)
+
+    assert len(results) == 1
+    deviation, quality = results[0]
+    assert quality == MoveQuality.BLUNDER
+    assert deviation.user_move == "Qh5"
+    assert deviation.move_number == 3
+
+
+@pytest.mark.asyncio
+async def test_find_blunders_in_game_returns_empty_on_no_blunder():
+    from bot.services.deviation import find_blunders_in_game
+    import chess.engine
+
+    pgn = "1. e4 e5 2. Nf3 Nc6"
+
+    mock_transport = MagicMock()
+    mock_engine = AsyncMock()
+    mock_engine.analyse = AsyncMock(return_value={
+        "score": chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)
+    })
+    mock_engine.quit = AsyncMock()
+
+    with patch(
+        "bot.services.deviation.chess.engine.popen_uci",
+        AsyncMock(return_value=(mock_transport, mock_engine)),
+    ):
+        results = await find_blunders_in_game(pgn, session=None)
+
+    assert results == []
+
+
+@pytest.mark.asyncio
+async def test_find_blunders_in_game_empty_pgn():
+    from bot.services.deviation import find_blunders_in_game
+
+    results = await find_blunders_in_game("", session=None)
+    assert results == []
+
+
+@pytest.mark.asyncio
 async def test_evaluate_deviation():
     from bot.services.deviation import evaluate_deviation
     from bot.domain.deviation_result import DeviationResult
