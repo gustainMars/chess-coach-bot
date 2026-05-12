@@ -86,7 +86,7 @@ async def handle_study_card(request: web.Request) -> web.Response:
         blunder, reset = await repository.get_next_unreviewed_blunder(session, user_id, eco=eco)
 
     if blunder is None:
-        return web.json_response({"blunder": None, "reset": False}, headers=_CORS_HEADERS)
+        return web.json_response({"blunder_id": None, "reset": False}, headers=_CORS_HEADERS)
 
     try:
         board = chess.Board(blunder.fen)
