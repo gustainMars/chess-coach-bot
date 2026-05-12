@@ -23,7 +23,6 @@ multidict==6.7.1
 propcache==0.4.1
 pydantic==2.12.5
 pydantic_core==2.41.5
-python-chess==1.999
 python-dotenv==1.2.2
 SQLAlchemy==2.0.49
 stockfish==4.0.8
