@@ -50,8 +50,16 @@ def _format_report(username, games, white_stats, black_stats):
     return msg
 
 
-async def _save_blunders(session, telegram_id, games):
-    for game in games:
+def _progress_bar(current: int, total: int, width: int = 10) -> str:
+    filled = round(width * current / total) if total else 0
+    return "█" * filled + "░" * (width - filled)
+
+
+async def _save_blunders(session, telegram_id, games, on_progress=None):
+    for idx, game in enumerate(games, 1):
+        if on_progress:
+            await on_progress(idx, len(games))
+
         pgn = game.get("pgn", "")
         if not pgn:
             continue
@@ -155,7 +163,19 @@ async def cmd_analyze(message: Message):
                 report += Messages.RATING_PROGRESS.format(
                     prev=prev_rating, current=rating
                 )
-            await _save_blunders(session, message.from_user.id, games)
+            async def _on_progress(i, total):
+                bar = _progress_bar(i, total)
+                try:
+                    await status_msg.edit_text(
+                        Messages.SCANNING_BLUNDERS.format(bar=f"[{bar}] {i}/{total}"),
+                        parse_mode="Markdown",
+                    )
+                except Exception:
+                    pass
+
+            await _save_blunders(
+                session, message.from_user.id, games, on_progress=_on_progress
+            )
     except Exception:
         logging.exception("DB persistence failed for user %s", username)
 

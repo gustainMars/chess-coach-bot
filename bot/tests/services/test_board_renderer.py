@@ -1,7 +1,10 @@
-from unittest.mock import patch
+import sys
+from unittest.mock import MagicMock, patch
 
 import chess
 import pytest
+
+sys.modules.setdefault("cairosvg", MagicMock())
 
 from bot.services.board_renderer import fen_to_png
 
