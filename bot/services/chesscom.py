@@ -11,8 +11,8 @@ def _archive_ym(url: str) -> tuple[int, int]:
 
 
 async def get_recent_games(username: str) -> list:
-    """Return games from the last 30 days for a Chess.com user."""
-    cutoff = datetime.now(timezone.utc) - timedelta(days=30)
+    """Return games from the last 15 days for a Chess.com user."""
+    cutoff = datetime.now(timezone.utc) - timedelta(days=15)
     cutoff_ym = (cutoff.year, cutoff.month)
     cutoff_ts = cutoff.timestamp()
 

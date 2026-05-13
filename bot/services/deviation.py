@@ -56,6 +56,7 @@ def get_fen_from_moves(moves: list[str]) -> str:
 
 
 MAX_OPENING_HALF_MOVES = 12
+_MAX_BLUNDERS_PER_GAME = 3
 
 
 def find_deviation(pgn_moves: str, opening_eco: str, max_half_moves: int = MAX_OPENING_HALF_MOVES) -> DeviationResult | None:
@@ -83,7 +84,6 @@ def find_deviation(pgn_moves: str, opening_eco: str, max_half_moves: int = MAX_O
 async def find_blunders_in_game(
     pgn: str,
     session,
-    max_half_moves: int = MAX_OPENING_HALF_MOVES,
 ) -> list[tuple[DeviationResult, MoveQuality]]:
     moves = parse_moves(pgn)
     if not moves:
@@ -93,17 +93,18 @@ async def find_blunders_in_game(
     transport, engine = await chess.engine.popen_uci(
         os.getenv("STOCKFISH_PATH", "stockfish")
     )
+    collected: list[tuple[DeviationResult, MoveQuality, int]] = []
     try:
-        for i, san in enumerate(moves[:max_half_moves]):
+        for i, san in enumerate(moves):
             fen_before = board.fen()
             pov = board.turn
 
-            eval_before = await engine.analyse(board, chess.engine.Limit(depth=12))
+            eval_before = await engine.analyse(board, chess.engine.Limit(depth=10))
 
             move = board.parse_san(san)
             board.push(move)
 
-            eval_after = await engine.analyse(board, chess.engine.Limit(depth=12))
+            eval_after = await engine.analyse(board, chess.engine.Limit(depth=10))
 
             score_before = eval_before["score"].pov(pov).score(mate_score=10000)
             score_after = eval_after["score"].pov(pov).score(mate_score=10000)
@@ -111,26 +112,34 @@ async def find_blunders_in_game(
             if score_before is None or score_after is None:
                 continue
 
-            quality = _classify_drop(score_before - score_after)
+            drop = score_before - score_after
+            quality = _classify_drop(drop)
             if quality not in (MoveQuality.BLUNDER, MoveQuality.MISTAKE):
                 continue
 
-            best = await engine.play(chess.Board(fen_before), chess.engine.Limit(depth=12))
+            best = await engine.play(
+                chess.Board(fen_before), chess.engine.Limit(depth=10)
+            )
             try:
                 expected_san = chess.Board(fen_before).san(best.move)
             except Exception:
                 expected_san = best.move.uci()
 
-            return [(DeviationResult(
-                move_number=i + 1,
-                user_move=san,
-                expected_move=expected_san,
-                fen=fen_before,
-            ), quality)]
+            collected.append((
+                DeviationResult(
+                    move_number=i + 1,
+                    user_move=san,
+                    expected_move=expected_san,
+                    fen=fen_before,
+                ),
+                quality,
+                drop,
+            ))
     finally:
         await engine.quit()
 
-    return []
+    collected.sort(key=lambda x: x[2], reverse=True)
+    return [(r, q) for r, q, _ in collected[:_MAX_BLUNDERS_PER_GAME]]
 
 
 def _classify_drop(drop: int) -> MoveQuality | None:

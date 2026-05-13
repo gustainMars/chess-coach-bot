@@ -98,6 +98,52 @@ export async function getPosition({ apiUrl, initData }) {
 }
 
 /**
+ * Fetch the list of ECO openings available for learning.
+ *
+ * @param {object} opts
+ * @param {string} opts.apiUrl   - base URL (no trailing slash)
+ * @param {string} opts.initData - Telegram.WebApp.initData for HMAC auth
+ * @returns {Promise<Array<{eco: string, name: string, moves: string[], fens: string[]}>>}
+ */
+export async function getLearnOpenings({ apiUrl, initData }) {
+  const endpoint = apiUrl
+    ? `${apiUrl}/miniapp/learn/openings`
+    : '/miniapp/learn/openings';
+
+  const resp = await fetch(endpoint, {
+    method: 'GET',
+    headers: { 'X-Telegram-Init-Data': initData },
+  });
+
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+/**
+ * Fetch the top master moves for a given FEN position.
+ *
+ * @param {object} opts
+ * @param {string} opts.apiUrl   - base URL (no trailing slash)
+ * @param {string} opts.fen      - FEN string of the position
+ * @param {string} opts.initData - Telegram.WebApp.initData for HMAC auth
+ * @returns {Promise<Array<{uci: string, san: string}>>}
+ */
+export async function getLearnMoves({ apiUrl, fen, initData }) {
+  const endpoint = apiUrl
+    ? `${apiUrl}/miniapp/learn/moves`
+    : '/miniapp/learn/moves';
+  const url = `${endpoint}?fen=${encodeURIComponent(fen)}`;
+
+  const resp = await fetch(url, {
+    method: 'GET',
+    headers: { 'X-Telegram-Init-Data': initData },
+  });
+
+  if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return resp.json();
+}
+
+/**
  * Submit the user's piece selection to the backend for validation.
  *
  * @param {object} opts

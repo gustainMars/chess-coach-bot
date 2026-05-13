@@ -12,7 +12,7 @@ class Messages:
     DEBUG_USAGE = "Use: /debug <username>"
 
     REPORT_HEADER = (
-        "♟️ *Openings Analysis — {username}*\n_{total} matches in the last 30 days_\n\n"
+        "♟️ *Openings Analysis — {username}*\n_{total} matches in the last 15 days_\n\n"
     )
     PLAYING_WHITE = "*Playing as White:*\n"
     PLAYING_BLACK = "\n*Playing as Black:*\n"
@@ -21,7 +21,8 @@ class Messages:
     STUDY_SUGGESTION = (
         "\n📚 *Study suggestion:*\n"
         "Focus on improving the opening *{name}* - with a winrate of {winrate}%.\n"
-        "Use /study to get personalized study materials for this opening.\n"
+        "Use /review\\_blunders to practice your mistakes, "
+        "or /learn to study from scratch.\n"
     )
     RATING_PROGRESS = (
         "\n🎉 *Rating up!* Rapid went from {prev} → {current} since last month."
@@ -55,6 +56,14 @@ class Messages:
         "Practice the moves you missed in your recent games.\n"
         "Select an opening to filter, or study all blunders at once."
     )
+
+    LEARN_OPEN = (
+        "📚 *Learn an Opening*\n\n"
+        "Step through any opening move by move and see what master players do next.\n"
+        "Pick an opening from the list and tap *Next move* to follow the theory."
+    )
+
+    SCANNING_BLUNDERS = "⚙️ Scanning games for blunders...\n{bar}"
 
     ATTACK_QUESTION = (
         "⚔️ *Attack Training*\n\n"

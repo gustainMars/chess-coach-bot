@@ -13,7 +13,8 @@ from aiogram.fsm.storage.memory import MemoryStorage  # noqa: E402
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application  # noqa: E402
 from bot.handlers.start import router as start_router  # noqa: E402
 from bot.handlers.analyze import router as analyze_router  # noqa: E402
-from bot.handlers.study import router as study_router  # noqa: E402
+from bot.handlers.review_blunders import router as review_blunders_router  # noqa: E402
+from bot.handlers.learn import router as learn_router  # noqa: E402
 from bot.handlers.attack_training import router as attack_training_router  # noqa: E402
 from bot.db.database import init_db  # noqa: E402
 from bot.web.routes import create_web_app  # noqa: E402
@@ -51,7 +52,8 @@ def main():
     dp.shutdown.register(on_shutdown)
     dp.include_router(start_router)
     dp.include_router(analyze_router)
-    dp.include_router(study_router)
+    dp.include_router(review_blunders_router)
+    dp.include_router(learn_router)
     dp.include_router(attack_training_router)
 
     app = create_web_app()

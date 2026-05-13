@@ -102,17 +102,20 @@ async def test_find_blunders_in_game_detects_blunder():
     from bot.domain.deviation_result import DeviationResult
     import chess.engine
 
+    # pgn has 4 moves: e4, e5, Qh5, Nc6
+    # Qh5 is the blunder (big score drop); Nc6 is a neutral reply
     pgn = "1. e4 e5 2. Qh5 Nc6"
 
     mock_transport = MagicMock()
     mock_engine = AsyncMock()
+    def _s(cp):
+        return {"score": chess.engine.PovScore(chess.engine.Cp(cp), chess.WHITE)}
+
     mock_engine.analyse = AsyncMock(side_effect=[
-        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)},
-        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.BLACK)},
-        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.BLACK)},
-        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)},
-        {"score": chess.engine.PovScore(chess.engine.Cp(20), chess.WHITE)},
-        {"score": chess.engine.PovScore(chess.engine.Cp(-130), chess.WHITE)},
+        _s(20),  _s(20),   # e4: no drop
+        _s(-20), _s(-20),  # e5: no drop
+        _s(20),  _s(-130), # Qh5: drop 150 → BLUNDER
+        _s(130), _s(130),  # Nc6: neutral
     ])
     mock_move = MagicMock()
     mock_move.move = chess.Move.from_uci("g1f3")
@@ -130,6 +133,44 @@ async def test_find_blunders_in_game_detects_blunder():
     assert quality == MoveQuality.BLUNDER
     assert deviation.user_move == "Qh5"
     assert deviation.move_number == 3
+
+
+@pytest.mark.asyncio
+async def test_find_blunders_in_game_returns_all_blunders_sorted():
+    """All blunders in a game are returned (not just the first), sorted worst-first."""
+    from bot.services.deviation import find_blunders_in_game
+    import chess.engine
+
+    # e4 (white, pov=WHITE): before=300, after=0, drop=300 → BLUNDER
+    # e5 (black, pov=BLACK): PovScore(-50,W).pov(B)=50, PovScore(150,W).pov(B)=-150
+    #   drop = 50 - (-150) = 200 → BLUNDER
+    pgn = "1. e4 e5"
+
+    mock_transport = MagicMock()
+    mock_engine = AsyncMock()
+
+    def _s(cp):
+        return {"score": chess.engine.PovScore(chess.engine.Cp(cp), chess.WHITE)}
+
+    mock_engine.analyse = AsyncMock(side_effect=[
+        _s(300), _s(0),    # e4: drop 300
+        _s(-50), _s(150),  # e5: drop 200 from black's pov
+    ])
+    mock_move = MagicMock()
+    mock_move.move = chess.Move.from_uci("g1f3")
+    mock_engine.play = AsyncMock(return_value=mock_move)
+    mock_engine.quit = AsyncMock()
+
+    with patch(
+        "bot.services.deviation.chess.engine.popen_uci",
+        AsyncMock(return_value=(mock_transport, mock_engine)),
+    ):
+        results = await find_blunders_in_game(pgn, session=None)
+
+    assert len(results) == 2
+    assert all(q in (MoveQuality.BLUNDER, MoveQuality.MISTAKE) for _, q in results)
+    # Worst blunder (drop=300, e4) must come first
+    assert results[0][0].user_move == "e4"
 
 
 @pytest.mark.asyncio

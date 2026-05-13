@@ -1,3 +1,4 @@
+import csv
 import os
 
 import chess
@@ -10,6 +11,8 @@ from bot.services.attack_generator import (
     get_capturable_squares,
     validate_capture_selection,
 )
+from bot.services.deviation import ECO_PATH, parse_moves
+from bot.services.lichess_explorer import get_top_moves
 from bot.services.move_validator import validate_move_input
 from bot.utils.telegram_auth import parse_telegram_user_id, validate_init_data
 
@@ -161,6 +164,84 @@ async def handle_study_openings(request: web.Request) -> web.Response:
     return web.json_response(openings, headers=_CORS_HEADERS)
 
 
+# ── Learn endpoints ───────────────────────────────────────────────────────────
+
+_eco_openings_cache: list[dict] | None = None
+
+
+def _load_eco_openings() -> list[dict]:
+    global _eco_openings_cache
+    if _eco_openings_cache is not None:
+        return _eco_openings_cache
+    entries = []
+    with open(ECO_PATH, encoding="utf-8") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            moves = parse_moves(row["pgn"])
+            board = chess.Board()
+            fens = [board.fen()]
+            for san in moves:
+                board.push_san(san)
+                fens.append(board.fen())
+            entries.append({
+                "eco": row["eco"],
+                "name": row["name"],
+                "moves": moves,
+                "fens": fens,
+            })
+    _eco_openings_cache = entries
+    return entries
+
+
+async def handle_learn_openings(request: web.Request) -> web.Response:
+    valid, _ = _auth(request)
+    if not valid:
+        return web.json_response(
+            {"error": "unauthorized"}, status=401, headers=_CORS_HEADERS
+        )
+    return web.json_response(_load_eco_openings(), headers=_CORS_HEADERS)
+
+
+async def handle_learn_moves(request: web.Request) -> web.Response:
+    valid, _ = _auth(request)
+    if not valid:
+        return web.json_response(
+            {"error": "unauthorized"}, status=401, headers=_CORS_HEADERS
+        )
+
+    fen = request.rel_url.query.get("fen", "").strip()
+    if not fen:
+        return web.json_response(
+            {"error": "fen required"}, status=400, headers=_CORS_HEADERS
+        )
+    try:
+        board = chess.Board(fen)
+    except ValueError:
+        return web.json_response(
+            {"error": "invalid fen"}, status=400, headers=_CORS_HEADERS
+        )
+
+    async with SessionFactory() as session:
+        cached = await repository.get_cached_explorer_moves(session, fen)
+        if cached is not None:
+            uci_moves = cached
+        else:
+            uci_moves = await get_top_moves(fen)
+            if uci_moves:
+                await repository.save_cached_explorer_moves(session, fen, uci_moves)
+
+    result = []
+    for uci in uci_moves:
+        try:
+            move = chess.Move.from_uci(uci)
+            san = board.san(move)
+            result.append({"uci": uci, "san": san})
+        except Exception:
+            pass
+
+    return web.json_response(result, headers=_CORS_HEADERS)
+
+
 # ── Health ────────────────────────────────────────────────────────────────────
 
 async def handle_health(request: web.Request) -> web.Response:
@@ -182,5 +263,10 @@ def create_web_app() -> web.Application:
     app.router.add_get("/miniapp/study/card", handle_study_card)
     app.router.add_post("/miniapp/study/answer", handle_study_answer)
     app.router.add_get("/miniapp/study/openings", handle_study_openings)
+
+    app.router.add_options("/miniapp/learn/openings", handle_preflight)
+    app.router.add_options("/miniapp/learn/moves", handle_preflight)
+    app.router.add_get("/miniapp/learn/openings", handle_learn_openings)
+    app.router.add_get("/miniapp/learn/moves", handle_learn_moves)
 
     return app

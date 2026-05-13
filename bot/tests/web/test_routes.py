@@ -1,5 +1,6 @@
 import hashlib
 import hmac
+from unittest.mock import AsyncMock, patch
 from urllib.parse import urlencode
 
 import chess
@@ -178,3 +179,102 @@ async def test_options_position_returns_200(client):
     resp = await client.options("/miniapp/attack/position")
     assert resp.status == 200
     assert resp.headers.get("Access-Control-Allow-Origin") == "*"
+
+
+# ── GET /miniapp/learn/openings ───────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_learn_openings_returns_list(client, valid_init_data):
+    resp = await client.get(
+        "/miniapp/learn/openings",
+        headers={"X-Telegram-Init-Data": valid_init_data},
+    )
+    assert resp.status == 200
+    data = await resp.json()
+    assert isinstance(data, list)
+    assert len(data) > 0
+    first = data[0]
+    assert "eco" in first
+    assert "name" in first
+    assert "moves" in first
+    assert "fens" in first
+    assert isinstance(first["moves"], list)
+    assert isinstance(first["fens"], list)
+    # fens has one more entry than moves (starting position + after each move)
+    assert len(first["fens"]) == len(first["moves"]) + 1
+
+
+@pytest.mark.asyncio
+async def test_learn_openings_unauthorized(client):
+    resp = await client.get("/miniapp/learn/openings")
+    assert resp.status == 401
+
+
+# ── GET /miniapp/learn/moves ──────────────────────────────────────────────────
+
+
+@pytest.mark.asyncio
+async def test_learn_moves_missing_fen_returns_400(client, valid_init_data):
+    resp = await client.get(
+        "/miniapp/learn/moves",
+        headers={"X-Telegram-Init-Data": valid_init_data},
+    )
+    assert resp.status == 400
+
+
+@pytest.mark.asyncio
+async def test_learn_moves_invalid_fen_returns_400(client, valid_init_data):
+    resp = await client.get(
+        "/miniapp/learn/moves?fen=not-a-fen",
+        headers={"X-Telegram-Init-Data": valid_init_data},
+    )
+    assert resp.status == 400
+
+
+@pytest.mark.asyncio
+async def test_learn_moves_returns_san_and_uci(client, valid_init_data):
+    fen = chess.STARTING_FEN
+
+    def _fake_session():
+        class _Ctx:
+            async def __aenter__(self): return self
+            async def __aexit__(self, *_): pass
+        return _Ctx()
+
+    with (
+        patch("bot.web.routes.SessionFactory", side_effect=_fake_session),
+        patch(
+            "bot.web.routes.repository.get_cached_explorer_moves",
+            new_callable=AsyncMock,
+            return_value=None,
+        ),
+        patch(
+            "bot.web.routes.get_top_moves",
+            new_callable=AsyncMock,
+            return_value=["e2e4", "d2d4"],
+        ),
+        patch(
+            "bot.web.routes.repository.save_cached_explorer_moves",
+            new_callable=AsyncMock,
+        ),
+    ):
+        resp = await client.get(
+            f"/miniapp/learn/moves?fen={fen}",
+            headers={"X-Telegram-Init-Data": valid_init_data},
+        )
+
+    assert resp.status == 200
+    data = await resp.json()
+    assert isinstance(data, list)
+    assert len(data) == 2
+    assert data[0]["uci"] == "e2e4"
+    assert data[0]["san"] == "e4"
+    assert data[1]["uci"] == "d2d4"
+    assert data[1]["san"] == "d4"
+
+
+@pytest.mark.asyncio
+async def test_learn_moves_unauthorized(client):
+    resp = await client.get(f"/miniapp/learn/moves?fen={chess.STARTING_FEN}")
+    assert resp.status == 401
