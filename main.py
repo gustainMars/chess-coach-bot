@@ -32,7 +32,16 @@ async def on_startup(bot: Bot):
     await init_db()
     stockfish_path = os.getenv("STOCKFISH_PATH", "stockfish")
     exists = os.path.isfile(stockfish_path)
-    logging.info("Stockfish path: %s (exists=%s)", stockfish_path, exists)
+    candidates = [p for p in [
+        "/usr/bin/stockfish",
+        "/usr/games/stockfish",
+        "/usr/local/bin/stockfish",
+        "/bin/stockfish",
+    ] if os.path.isfile(p)]
+    logging.info(
+        "Stockfish configured: %s (exists=%s) | found at: %s",
+        stockfish_path, exists, candidates or "nowhere",
+    )
     if not WEBHOOK_URL:
         logging.error("WEBHOOK_URL env var is not set — webhook will not be registered")
         return
