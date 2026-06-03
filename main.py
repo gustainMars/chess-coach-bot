@@ -30,6 +30,9 @@ logging.basicConfig(level=logging.INFO)
 
 async def on_startup(bot: Bot):
     await init_db()
+    stockfish_path = os.getenv("STOCKFISH_PATH", "stockfish")
+    exists = os.path.isfile(stockfish_path)
+    logging.info("Stockfish path: %s (exists=%s)", stockfish_path, exists)
     if not WEBHOOK_URL:
         logging.error("WEBHOOK_URL env var is not set — webhook will not be registered")
         return

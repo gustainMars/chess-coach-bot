@@ -4,6 +4,8 @@ RUN apt-get update && \
     apt-get install -y --no-install-recommends libcairo2 stockfish && \
     rm -rf /var/lib/apt/lists/*
 
+ENV STOCKFISH_PATH=/usr/games/stockfish
+
 WORKDIR /app
 
 COPY requirements.txt .
